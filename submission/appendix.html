@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>MeshDoc, supplementary material for the NLnet Restack application</title>
+<style>
+@page { size: A4; margin: 16mm 15mm 14mm 15mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin:0; color:#1b1f24; font: 9.9pt/1.4 "Liberation Sans","DejaVu Sans",sans-serif; }
+.page { break-after: page; }
+.page:last-child { break-after: auto; }
+h1 { font: 700 30pt/1.1 "Liberation Serif","DejaVu Serif",serif; margin:0 0 6px; letter-spacing:-0.3px; }
+h2 { font: 700 15pt/1.2 "Liberation Serif","DejaVu Serif",serif; margin:0 0 4px;
+     padding-bottom:5px; border-bottom:2px solid #2f6b1f; }
+h3 { font: 700 10.5pt/1.3 "Liberation Sans",sans-serif; margin:14px 0 4px; color:#22400f; }
+p { margin: 0 0 8px; }
+.lead { font-size:11pt; color:#33404d; }
+.muted { color:#6a7480; }
+.small { font-size: 8.6pt; }
+.kicker { font: 700 8.5pt/1 "Liberation Sans",sans-serif; letter-spacing:1.6px;
+          text-transform:uppercase; color:#2f6b1f; margin-bottom:10px; }
+.rule { height:1px; background:#d8dee4; margin:14px 0; }
+table { width:100%; border-collapse:collapse; margin:7px 0 9px; font-size:8.9pt; }
+th { text-align:left; font-weight:700; color:#22400f; border-bottom:1.5px solid #2f6b1f;
+     padding:4px 6px; background:#f3f7ef; }
+td { padding:4px 6px; border-bottom:1px solid #e4e9ee; vertical-align:top; }
+tr:nth-child(even) td { background:#fafbfc; }
+td.num, th.num { text-align:right; white-space:nowrap; }
+.mono { font-family:"Liberation Mono","DejaVu Sans Mono",monospace; font-size:8.6pt; }
+.ok { color:#217a31; font-weight:700; }
+.part { color:#8a6d00; font-weight:700; }
+.no { color:#8c2f2f; font-weight:700; }
+.box { border:1px solid #d8dee4; border-left:3px solid #2f6b1f; background:#f7f9f6;
+       padding:10px 12px; margin:10px 0; }
+.warn { border-left-color:#b8860b; background:#fdf9ef; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.phones { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:10px 0 4px; }
+.phones figure { margin:0; }
+.phones img { height:250px; width:auto; max-width:100%; display:block; margin:0 auto; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+figure { margin:10px 0 0; }
+figure img { width:100%; border:1px solid #d8dee4; border-radius:4px; }
+figcaption { font-size:8.4pt; color:#6a7480; margin-top:4px; }
+.facts { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+.fact { border:1px solid #d8dee4; border-radius:5px; padding:9px 10px; }
+.fact b { display:block; font-size:16pt; color:#2f6b1f; line-height:1.1; }
+.fact span { font-size:8.4pt; color:#6a7480; }
+ul, ol { margin:4px 0 10px; padding-left:18px; }
+li { margin-bottom:3px; }
+</style></head>
+<body>
+
+<section class="page">
+  <div class="kicker">Supplementary material</div>
+  <h1>MeshDoc</h1>
+  <p class="lead" style="font-size:13pt; color:#22400f; margin-bottom:18px;">
+    Offline first, end to end encrypted collaboration for teams without reliable connectivity.
+  </p>
+
+  <p>Most collaboration software assumes a server. MeshDoc assumes none, and treats the
+  internet as an optional enhancement. An Android phone holds structured documents
+  (checklists, supply forms, location notes) that are encrypted before they leave the
+  device, synchronised directly with other phones over Bluetooth and Wi-Fi Direct, and
+  passed to an internet relay when one happens to be reachable. When two phones meet,
+  they reconcile and converge. When one climbs a hill and finds signal, the whole team's
+  state reaches headquarters.</p>
+
+  <p>This appendix is evidence, not argument. It documents a working prototype built
+  before the application, so that a reviewer can judge the plan against something that
+  runs rather than against a description of something that might. It also sets out the
+  architecture, the security model and its limits, the budget and the risks.</p>
+
+  <div class="facts">
+    <div class="fact"><b>133</b><span>automated tests passing</span></div>
+    <div class="fact"><b>2</b><span>Android devices converged</span></div>
+    <div class="fact"><b>MIT</b><span>licence, no exceptions</span></div>
+    <div class="fact"><b>4</b><span>Rust crates planned</span></div>
+  </div>
+
+  <div class="rule"></div>
+
+  <table style="font-size:9.6pt;">
+    <tr><td style="width:30%; color:#6a7480; border:none;">Applicant</td>
+        <td style="border:none;">Sushant, Arvion Technologies, Kathmandu, Nepal</td></tr>
+    <tr><td style="color:#6a7480; border:none;">Fund</td>
+        <td style="border:none;">NLnet Restack, Open Internet Stack</td></tr>
+    <tr><td style="color:#6a7480; border:none;">Requested</td>
+        <td style="border:none;">29,920 euro over twelve months</td></tr>
+    <tr><td style="color:#6a7480; border:none;">Source</td>
+        <td style="border:none;" class="mono">https://github.com/sushant-me/meshdoc</td></tr>
+    <tr><td style="color:#6a7480; border:none;">Licence</td>
+        <td style="border:none;">MIT</td></tr>
+    <tr><td style="color:#6a7480; border:none;">Date</td>
+        <td style="border:none;">2 November 2026</td></tr>
+  </table>
+
+  <div class="box" style="margin-top:22px;">
+    <b>What is in here.</b> Section 1 is what exists today and how it is
+    verified. Section 2 is the architecture. Section 3 follows one edit from a tap to a
+    converged replica. Section 4 is the security model, including what it does not
+    protect. Section 5 is the plan and the money. Section 6 is the risk register.
+    Section 7 is prior art.
+  </div>
+</section>
+<section class="page">
+  <h2>1. What exists today, and how we check it</h2>
+  <p>This is a prototype, not a product. We built it to answer one question before asking
+  anyone for money: are the hard parts actually as hard as they look? The table below
+  is blunt on purpose, including where things are only half done.</p>
+
+  <table>
+    <tr><th style="width:27%;">Component</th><th style="width:15%;">State</th><th>Evidence</th></tr>
+    <tr><td>Device identity</td><td class="ok">Working</td>
+        <td>Ed25519 signing plus X25519 agreement, generated on device, never transmitted.
+        No accounts, no phone numbers.</td></tr>
+    <tr><td>Workspaces and membership</td><td class="ok">Working</td>
+        <td>Signed, append only membership log with key rotation epochs. A non member
+        holding the workspace key still cannot have a change applied.</td></tr>
+    <tr><td>Encrypted change envelope</td><td class="ok">Working</td>
+        <td>XChaCha20 Poly1305, with workspace, document, epoch and author bound as
+        associated data. Relabelling an envelope into another document fails.</td></tr>
+    <tr><td>CRDT documents</td><td class="ok">Working</td>
+        <td>Four typed views over an existing CRDT: checklist, supply form, geo point,
+        note. Concurrent edits converge.</td></tr>
+    <tr><td>Anti entropy sync</td><td class="ok">Working</td>
+        <td>Peers exchange content addresses and transfer only the difference, in pages,
+        resuming after a dropped link without resending.</td></tr>
+    <tr><td>Relay and delay tolerance</td><td class="ok">Working</td>
+        <td>Opaque blob store with sequence numbers. Two peers that are never online
+        together still converge through it.</td></tr>
+    <tr><td>BLE discovery</td><td class="part">Implemented</td>
+        <td>Rotating 128 bit service UUID derived from the workspace key, 15 minute
+        bucket, unlinkable to observers. Advertising verified running on Android 15.
+        Not yet tested phone to phone.</td></tr>
+    <tr><td>Wi-Fi Direct formation</td><td class="part">Implemented</td>
+        <td>Deterministic owner election from the two identity fingerprints, so both
+        sides always request opposite intents and negotiation cannot stall. Authenticated
+        handshake before any sync. Not yet tested on physical hardware.</td></tr>
+    <tr><td>Android client</td><td class="ok">Working</td>
+        <td>Flutter interface, Rust core over FFI, Kotlin radios. Installs, launches,
+        creates documents, advertises, scans, syncs.</td></tr>
+    <tr><td>Two device convergence</td><td class="ok">Verified</td>
+        <td>Two Android 15 devices, syncing in both directions with edits made while
+        apart, ending byte identical.</td></tr>
+  </table>
+
+  <h3>Automated test coverage</h3>
+  <table>
+    <tr><th>Suite</th><th class="num">Tests</th><th>What it covers</th></tr>
+    <tr><td>Core library</td><td class="num">76</td>
+        <td>Cryptography, membership authorisation, document convergence, sync protocol,
+        transport framing, encrypted store, BLE tag derivation, group role election</td></tr>
+    <tr><td>Convergence fuzzing</td><td class="num">7</td>
+        <td>Seeded random edit and partition schedules over 3 to 6 replicas, then a full
+        heal, asserting identical state and no lost work</td></tr>
+    <tr><td>Relay client</td><td class="num">30</td>
+        <td>HTTP framing, pagination, timeouts, error surfaces</td></tr>
+    <tr><td>Relay server</td><td class="num">15</td>
+        <td>Idempotency, crash recovery, concurrent writers, quota and eviction</td></tr>
+    <tr><td>FFI boundary</td><td class="num">5</td>
+        <td>The C ABI the Android app uses, including a full two store sync driven only
+        through the exported functions</td></tr>
+    <tr><td><b>Total</b></td><td class="num"><b>133</b></td><td></td></tr>
+  </table>
+
+</section>
+<section class="page">
+  <h2>1.1 The client, running</h2>
+  <p>Screenshots from an Android 15 (API 35) device. The identity on the first screen is
+  generated by the Rust core inside the app. The second shows the nearby sync panel with
+  the capabilities the Kotlin layer actually reports, and BLE advertising running. The
+  third is a checklist, and every tick on it becomes an encrypted change.</p>
+
+  <div class="phones">
+    <figure>
+      <img src="../demo/android-app/01-home.png" alt="Home screen">
+      <figcaption>Identity made on device. No account, no registration.</figcaption>
+    </figure>
+    <figure>
+      <img src="../demo/android-app/02-nearby-sync-advertising.png" alt="Nearby sync">
+      <figcaption>Discovery panel, advertising active.</figcaption>
+    </figure>
+    <figure>
+      <img src="../demo/android-app/04-checklist.png" alt="Checklist">
+      <figcaption>Large targets, for gloved hands.</figcaption>
+    </figure>
+  </div>
+
+  <div class="grid2" style="margin-top:12px;">
+    <div>
+      <h3 style="margin-top:0;">What the client does today</h3>
+      <ul class="small">
+        <li>Create a workspace, or join one from an invite token.</li>
+        <li>List documents with a live summary per type.</li>
+        <li>Tick checklist items and add new ones.</li>
+        <li>Advertise the rotating discovery tag over BLE.</li>
+        <li>Scan for peers on that same tag.</li>
+        <li>Form a Wi-Fi Direct group and sync with a peer.</li>
+        <li>Pull from a relay over the internet.</li>
+      </ul>
+      <p class="small muted">When something native fails, the app says so in words
+      instead of crashing. In the field a silent failure is worse than a loud one.</p>
+    </div>
+    <div>
+      <div class="box" style="margin-top:0;">
+        <b>The claim we are not making.</b> The radio transports are written and their
+        logic is unit tested, but no two physical phones have exchanged a packet over
+        BLE or Wi-Fi Direct yet. Everything below the radio link is proven. The radio
+        itself is the work the grant would pay for.
+      </div>
+      <p class="small muted">We would rather write that down here than have a reviewer
+      discover it later.</p>
+    </div>
+  </div>
+</section>
+<section class="page">
+  <h2>2. Architecture</h2>
+  <p>Two equal peers. There is no master, no leader and no always on server. The only
+  optional component is the relay, and it is a post office: it stores sealed envelopes
+  and hands them out later.</p>
+
+  
+<svg viewBox="0 0 700 300" width="100%" xmlns="http://www.w3.org/2000/svg"
+     font-family="Liberation Sans, DejaVu Sans, sans-serif" font-size="9">
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#2f6b1f"/>
+    </marker>
+    <marker id="ag" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#9aa4ae"/>
+    </marker>
+  </defs>
+
+  <!-- device A -->
+  <rect x="8" y="30" width="210" height="240" rx="7" fill="#f7f9f6" stroke="#2f6b1f" stroke-width="1.4"/>
+  <text x="18" y="48" font-weight="bold" fill="#22400f">Phone A</text>
+
+  <rect x="18" y="58" width="190" height="30" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="26" y="70" font-weight="bold">Identity</text>
+  <text x="26" y="81" fill="#6a7480">ed25519 + x25519, on device</text>
+
+  <rect x="18" y="94" width="190" height="30" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="26" y="106" font-weight="bold">Encrypted store</text>
+  <text x="26" y="117" fill="#6a7480">Argon2id + XChaCha20</text>
+
+  <rect x="18" y="130" width="190" height="34" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="26" y="142" font-weight="bold">CRDT documents</text>
+  <text x="26" y="153" fill="#6a7480">checklist, form, geo, note</text>
+
+  <rect x="18" y="170" width="190" height="34" rx="4" fill="#eef4ea" stroke="#2f6b1f"/>
+  <text x="26" y="182" font-weight="bold">Sync engine</text>
+  <text x="26" y="193" fill="#6a7480">anti entropy, paging, resume</text>
+
+  <rect x="18" y="210" width="190" height="48" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="26" y="222" font-weight="bold">Transports</text>
+  <text x="26" y="234" fill="#6a7480">BLE discovery, Wi-Fi Direct,</text>
+  <text x="26" y="245" fill="#6a7480">TCP socket, relay client</text>
+
+  <!-- device B -->
+  <rect x="482" y="30" width="210" height="240" rx="7" fill="#f7f9f6" stroke="#2f6b1f" stroke-width="1.4"/>
+  <text x="492" y="48" font-weight="bold" fill="#22400f">Phone B</text>
+  <rect x="492" y="58" width="190" height="30" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="500" y="70" font-weight="bold">Identity</text><text x="500" y="81" fill="#6a7480">different keypair</text>
+  <rect x="492" y="94" width="190" height="30" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="500" y="106" font-weight="bold">Encrypted store</text><text x="500" y="117" fill="#6a7480">same code</text>
+  <rect x="492" y="130" width="190" height="34" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="500" y="142" font-weight="bold">CRDT documents</text><text x="500" y="153" fill="#6a7480">replica</text>
+  <rect x="492" y="170" width="190" height="34" rx="4" fill="#eef4ea" stroke="#2f6b1f"/>
+  <text x="500" y="182" font-weight="bold">Sync engine</text><text x="500" y="193" fill="#6a7480">same protocol</text>
+  <rect x="492" y="210" width="190" height="48" rx="4" fill="#ffffff" stroke="#c9d3cb"/>
+  <text x="500" y="222" font-weight="bold">Transports</text>
+  <text x="500" y="234" fill="#6a7480">BLE discovery, Wi-Fi Direct,</text>
+  <text x="500" y="245" fill="#6a7480">TCP socket, relay client</text>
+
+  <!-- mesh link -->
+  <line x1="222" y1="200" x2="478" y2="200" stroke="#2f6b1f" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="478" y1="222" x2="222" y2="222" stroke="#2f6b1f" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="268" y="176" width="164" height="52" rx="5" fill="#ffffff" stroke="#2f6b1f"/>
+  <text x="350" y="192" text-anchor="middle" font-weight="bold">Opportunistic link</text>
+  <text x="350" y="204" text-anchor="middle" fill="#6a7480">BLE discovers, Wi-Fi Direct</text>
+  <text x="350" y="215" text-anchor="middle" fill="#6a7480">carries the transfer</text>
+
+  <!-- relay -->
+  <rect x="240" y="8" width="220" height="26" rx="5" fill="#f3f4f6" stroke="#9aa4ae" stroke-dasharray="4 3"/>
+  <text x="350" y="25" text-anchor="middle" fill="#4a5560">Relay: opaque blobs, optional</text>
+  <line x1="140" y1="30" x2="250" y2="34" stroke="#9aa4ae" stroke-dasharray="4 3" marker-end="url(#ag)"/>
+  <line x1="560" y1="30" x2="452" y2="34" stroke="#9aa4ae" stroke-dasharray="4 3" marker-end="url(#ag)"/>
+
+  <text x="350" y="288" text-anchor="middle" fill="#6a7480">The relay stores ciphertext it cannot read. It is never required for correctness.</text>
+</svg>
+
+
+  <h3>Five things the design will not compromise on</h3>
+  <table>
+    <tr><th style="width:36%;">Invariant</th><th>Why it is there</th></tr>
+    <tr><td>Every wire format is encrypted before it is transported</td>
+        <td>The mesh, the relay, and a stolen phone's disk all look the same to an
+        attacker: ciphertext.</td></tr>
+    <tr><td>No server is required for correctness</td>
+        <td>The relay can be offline, hostile, or gone. Convergence happens by meeting.</td></tr>
+    <tr><td>Every change is attributable to a key in the membership log</td>
+        <td>Holding the workspace key lets you read. It does not let you write, because
+        writes are authorised by a signed log rather than by a shared secret.</td></tr>
+    <tr><td>The workspace identifier is never derived from a key</td>
+        <td>Rotating a key must not change the identity of the workspace, or every stored
+        reference and relay mailbox would break.</td></tr>
+    <tr><td>A document is the unit of merge, not a database row</td>
+        <td>Field teams edit a checklist, not a table. Shipping CRDT documents keeps merge
+        semantics honest.</td></tr>
+  </table>
+
+  <div class="box">
+    <b>Why a trait for transport.</b> The sync engine is written against a narrow
+    transport interface: advertise, discover, connect, send, receive. BLE discovery,
+    Wi-Fi Direct, a plain socket and the relay are all implementations. That is what
+    makes the radio work replaceable if a vendor stack misbehaves, and what lets other
+    projects reuse the transport crate without adopting the rest.
+  </div>
+</section>
+<section class="page">
+  <h2>3. The life of one edit</h2>
+  <p>Following a single tick of a checkbox from a tap to a converged replica on another
+  phone, with the numbers the prototype actually measures.</p>
+
+  <table>
+    <tr><th style="width:6%;" class="num">#</th><th style="width:26%;">Step</th><th>What happens</th></tr>
+    <tr><td class="num">1</td><td>Local edit</td>
+        <td>The CRDT updates in memory and produces a delta. Nothing has left the
+        device.</td></tr>
+    <tr><td class="num">2</td><td>Encode</td>
+        <td>The delta is sealed with the workspace epoch key. Workspace id, document id,
+        epoch and author are bound as associated data, so the ciphertext cannot be
+        relabelled.</td></tr>
+    <tr><td class="num">3</td><td>Sign</td>
+        <td>The author signs the header plus a hash of the ciphertext with their Ed25519
+        device key. A change is attributable forever.</td></tr>
+    <tr><td class="num">4</td><td>Store</td>
+        <td>The envelope is written to the encrypted local store and appended to the
+        change log. A typical checklist tick is around 400 bytes on the wire.</td></tr>
+    <tr><td class="num">5</td><td>Discover</td>
+        <td>The phone advertises a 128 bit service UUID derived from the workspace key
+        and a 15 minute time bucket. Only members can compute the sequence, so outsiders
+        see an unrelated random identifier that rotates.</td></tr>
+    <tr><td class="num">6</td><td>Connect</td>
+        <td>On a match, the two phones elect a Wi-Fi Direct group owner deterministically
+        from their fingerprints, so both sides request opposite roles and negotiation
+        cannot stall. Each side then proves possession of a member key before any sync
+        traffic.</td></tr>
+    <tr><td class="num">7</td><td>Reconcile</td>
+        <td>Peers exchange the content addresses they hold. Only what is missing crosses
+        the link, in bounded pages. A link that dies mid transfer resumes on the next
+        contact with nothing resent.</td></tr>
+    <tr><td class="num">8</td><td>Verify and apply</td>
+        <td>Signature, membership at the claimed epoch, and AEAD all check out before the
+        CRDT integrates the delta. A forged change is stored but never applied.</td></tr>
+    <tr><td class="num">9</td><td>Converge</td>
+        <td>Both replicas reach byte identical state without a conflict dialogue, because
+        the data type defines the merge rather than a server deciding.</td></tr>
+    <tr><td class="num">10</td><td>Relay, if there is signal</td>
+        <td>Any node may push the same envelopes to a relay as opaque blobs. A peer that
+        is never online at the same time pulls them later. Direct contact is always
+        preferred when available.</td></tr>
+  </table>
+
+  <h3>Why gossip sync works in the field</h3>
+  <p>Sync is gossip, not broadcast. If A meets B and B later meets C, then C has A's
+  changes. The network repairs itself through human movement, which is how field teams
+  actually work. This also means the system degrades gracefully: a team of five does not
+  need five phones in one place, only a chain of contacts.</p>
+
+  <div class="grid3" style="margin-top:14px;">
+    <div class="box" style="margin:0;">
+      <b>Change size</b><br><span class="mono">~400 bytes</span><br>
+      <span class="small muted">checklist tick on the wire</span>
+    </div>
+    <div class="box" style="margin:0;">
+      <b>Transfer frame</b><br><span class="mono">4,096 bytes</span><br>
+      <span class="small muted">bounded, resumable chunk</span>
+    </div>
+    <div class="box" style="margin:0;">
+      <b>Tag rotation</b><br><span class="mono">15 minutes</span><br>
+      <span class="small muted">plus two bucket skew tolerance</span>
+    </div>
+  </div>
+</section>
+<section class="page">
+  <h2>4. The security model, and what it does not protect</h2>
+  <p>A threat model that only lists strengths is marketing. This one lists the edges as
+  plainly as the guarantees, so a reviewer can tell exactly what a field deployment
+  would and would not buy.</p>
+
+  <table>
+    <tr><th style="width:34%;">Threat</th><th style="width:11%;">Protected</th><th>Mechanism, or why not</th></tr>
+    <tr><td>Relay operator reads content</td><td class="ok">Yes</td>
+        <td>Blobs are sealed with the workspace key before upload. The relay stores and
+        returns bytes it cannot interpret.</td></tr>
+    <tr><td>Network observer on the internet</td><td class="ok">Yes</td>
+        <td>Content is encrypted end to end, so TLS is a second layer rather than the
+        only one.</td></tr>
+    <tr><td>Stolen or seized phone, at rest</td><td class="ok">Yes</td>
+        <td>The local store is sealed with a key stretched from the passphrase using
+        Argon2id. Without the passphrase the change log is opaque.</td></tr>
+    <tr><td>Non member injects a change</td><td class="ok">Yes</td>
+        <td>Writes are authorised by the signed membership log, not by possession of the
+        workspace key. A stolen key reads but does not write.</td></tr>
+    <tr><td>Network observer of BLE discovery</td><td class="part">Partly</td>
+        <td>No stable application layer identifier: the UUID rotates every 15 minutes and
+        only members can derive it. Link layer tracking is outside what an app can fix,
+        and we say so.</td></tr>
+    <tr><td>Relay learns metadata</td><td class="no">No</td>
+        <td>The operator sees a workspace pseudonym, blob sizes and upload timing. Mailbox
+        identifiers rotate, which limits but does not remove correlation.</td></tr>
+    <tr><td>Malicious member</td><td class="no">No</td>
+        <td>A member can read everything and sign valid changes. Detecting that is a social
+        problem, not a cryptographic one.</td></tr>
+    <tr><td>Removed member reads new data</td><td class="part">Partly</td>
+        <td>Rotation stops them reading content written under a later epoch. It cannot
+        un read what they already saw, and a partitioned member keeps using the old epoch
+        until they learn of the rotation.</td></tr>
+    <tr><td>Traffic analysis and link layer tracking</td><td class="no">No</td>
+        <td>Not claimed. Doing it properly needs cover traffic, which conflicts with the
+        energy target.</td></tr>
+    <tr><td>Device loss with no passphrase</td><td class="no">No recovery</td>
+        <td>There is no key escrow, by design. Losing the passphrase means losing the
+        local data.</td></tr>
+  </table>
+
+  <div class="box warn">
+    <b>The rule we hold ourselves to:</b> if a claim cannot be backed by a measurement or
+    a construction, it does not go in the proposal. That is why the energy target is
+    written as a target with a measurement method attached, and why the radio transports
+    are described as implemented but not yet demonstrated on physical hardware.
+  </div>
+
+  <h3>Membership without a server</h3>
+  <p>A workspace key is easy to share and impossible to revoke cleanly, so possession
+  alone cannot be the authorisation rule. Instead each workspace carries a signed,
+  append only log of membership entries, and a change is accepted only if its author
+  appears in the receiver's own view of that log at the epoch the change claims. Because
+  the log is a hash chain, entries can arrive out of order and still verify. Concurrent
+  additions are allowed, and removals carry the epoch they take effect in.</p>
+  <p class="small muted">Longer term the group key layer moves to MLS (RFC 9420), which is
+  the right answer for a workspace with many members and frequent churn. The prototype
+  is deliberately simpler than that, and the design documents say so.</p>
+</section>
+<section class="page">
+  <h2>5. Plan and budget</h2>
+
+  <div class="grid2" style="grid-template-columns: 1.1fr 0.9fr;">
+    <div>
+      <h3 style="margin-top:0;">Where the money goes</h3>
+      <table>
+        <tr><th>WP</th><th>Work</th><th class="num">Days</th><th class="num">Euro</th><th>Deliverable</th></tr>
+        <tr><td class="mono">WP1</td><td>Setup, architecture, threat model</td><td class="num">9</td><td class="num">1,530</td><td class="small">Repository, licence, CI, decision records, written threat model</td></tr>
+<tr><td class="mono">WP2</td><td>Protocol core, crypto, document bridge</td><td class="num">34</td><td class="num">5,780</td><td class="small">Four document types, change format, identity, epochs, rotation, schema migration</td></tr>
+<tr><td class="mono">WP3</td><td>Transport abstraction and fast path</td><td class="num">20</td><td class="num">3,400</td><td class="small">Transport trait and a conformance suite any implementation can run</td></tr>
+<tr><td class="mono">WP4</td><td>Free software transports</td><td class="num">26</td><td class="num">4,420</td><td class="small">BLE discovery with rotating identifiers, Wi-Fi Direct formation, no Google services</td></tr>
+<tr><td class="mono">WP5</td><td>Relay and delay tolerant semantics</td><td class="num">14</td><td class="num">2,380</td><td class="small">Small store and forward service, rotating mailboxes, quotas, eviction</td></tr>
+<tr><td class="mono">WP6</td><td>Android reference client</td><td class="num">26</td><td class="num">4,420</td><td class="small">Compose interface, join flow, sync status, accessibility, onboarding</td></tr>
+<tr><td class="mono">WP7</td><td>Convergence and partition fuzzing</td><td class="num">18</td><td class="num">3,060</td><td class="small">Simulator, schedule generator, differential oracle, energy rig</td></tr>
+<tr><td class="mono">WP8</td><td>Field pilot, user research, documentation</td><td class="num">17</td><td class="num">2,890</td><td class="small">A real deployment with a partner organisation, written up publicly</td></tr>
+<tr><td class="mono">WP9</td><td>Community, upstream, F-Droid release</td><td class="num">12</td><td class="num">2,040</td><td class="small">Upstream contributions, reproducible build, store release</td></tr>
+        <tr><td></td><td><b>Total</b></td><td class="num"><b>176</b></td>
+            <td class="num"><b>29,920</b></td><td class="small">Zero expenses</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3 style="margin-top:0;">How the rate was derived</h3>
+      <table class="small">
+        <tr><td>Senior Rust and Android engineer, Kathmandu</td><td class="num">NPR 400,000 / month</td></tr>
+        <tr><td>In euro</td><td class="num">2,350</td></tr>
+        <tr><td>Employer on costs, 28 percent</td><td class="num">3,010</td></tr>
+        <tr><td>Studio overhead, 20 percent</td><td class="num">3,770</td></tr>
+        <tr><td>Divided by 21.67 working days</td><td class="num">174 / day</td></tr>
+        <tr><td><b>Rate we ask for</b></td><td class="num"><b>170 / day</b></td></tr>
+      </table>
+      <p class="small muted">This is cost recovery, not consultancy pricing. We ask slightly
+      below our own derived cost.</p>
+
+      <div class="box" style="margin-top:12px;">
+        <b>Expenses: none.</b> Phones, laptops, hosting and compute are not eligible, so we
+        request none. The studio already owns the test hardware. The security audit and the
+        accessibility scan are free NLnet support services, so both appear as zero cost
+        milestones rather than budget lines.
+      </div>
+
+      <p class="small">Two people at roughly a third of full time each over twelve months,
+      about 0.68 of one full time person. The first two months are deliberately light
+      because payment is in arrears and we carry that period ourselves.</p>
+    </div>
+  </div>
+
+  <h3>Milestones and payment</h3>
+  <p class="small">Payment is per milestone, in arrears. The two zero cost gates are in the
+  plan because the sample memorandum of understanding shows exactly these two, and because
+  binding the release to passing them is the right incentive.</p>
+  <table>
+    <tr><th class="num">Gate</th><th>Name</th><th>When</th><th class="num">Euro</th><th>Acceptance evidence</th></tr>
+    <tr><td class="mono">1</td><td>Foundations</td><td>Month 2</td><td class="num">3,000</td><td class="small">Threat model, wire spec, decision records public</td></tr>
+<tr><td class="mono">2</td><td>Core and first transport</td><td>Month 5</td><td class="num">7,000</td><td class="small">CRDT core, identity, transport trait, stock Android path</td></tr>
+<tr><td class="mono">3</td><td>Full transport matrix</td><td>Month 7</td><td class="num">8,000</td><td class="small">BLE discovery and Wi-Fi Direct on hardware without Google services</td></tr>
+<tr><td class="mono">&#183;</td><td>Accessibility gate</td><td>Month 9</td><td class="num">0</td><td class="small">WCAG audit through the free NLnet service, issues fixed</td></tr>
+<tr><td class="mono">4</td><td>Product, pilot and evidence</td><td>Month 10</td><td class="num">6,000</td><td class="small">App complete, fuzzer green, pilot report published</td></tr>
+<tr><td class="mono">&#183;</td><td>Security gate</td><td>Month 11</td><td class="num">0</td><td class="small">External security review, issues triaged and resolved</td></tr>
+<tr><td class="mono">5</td><td>Release and handover</td><td>Month 12</td><td class="num">5,920</td><td class="small">Reproducible build, F-Droid release, docs, upstream merged</td></tr>
+  </table>
+</section>
+<section class="page">
+  <h2>6. Risk register</h2>
+  <p>Six things that could go wrong, what each would cost, and what we would do. The
+  honest position is that two of these could force a scope reduction. Saying so in
+  advance is better than discovering it in month eight.</p>
+
+  <table>
+    <tr><th style="width:24%;">Risk</th><th style="width:8%;">Level</th>
+        <th style="width:26%;">Why it is real</th><th>Mitigation</th></tr>
+    <tr><td>Android background limits block the energy target</td><td class="no">High</td><td class="small">The operating system may simply forbid the background behaviour the design wants</td><td class="small">Measure on named devices with two independent instruments. Publish the number achieved. If the target cannot be met, report it and narrow the claim rather than the measurement.</td></tr>
+<tr><td>Wi-Fi Direct behaves differently across vendors</td><td class="no">High</td><td class="small">Group formation is known to vary on Huawei, Xiaomi, Samsung and Google builds</td><td class="small">The device matrix is a deliverable, not an assumption. The client falls back to a plain socket over a hotspot when formation fails.</td></tr>
+<tr><td>Free software radio path proves unworkable</td><td class="part">Medium</td><td class="small">The hardest engineering in the project</td><td class="small">The transport trait preserves the library, relay and fuzzing deliverables if the radio work has to be cut. The de-scope ladder is published in advance.</td></tr>
+<tr><td>CRDT growth over long partitions</td><td class="part">Medium</td><td class="small">Tombstones accumulate while replicas are apart for weeks</td><td class="small">Compaction is tested against convergence, and a late joiner rebuilding from a snapshot is an explicit acceptance criterion.</td></tr>
+<tr><td>Schema migration across app versions forks state</td><td class="part">Medium</td><td class="small">A replica on v2 receiving a v1 change must not diverge</td><td class="small">Migration is written as a pure function and tested for commutativity with merge.</td></tr>
+<tr><td>Scope creep into chat or maps</td><td class="part">Medium</td><td class="small">Both are obvious asks from users and both sink projects</td><td class="small">The non goals are written down and published. Chat and maps stay out of the funded scope.</td></tr>
+  </table>
+
+  <h3>The de-scope ladder, published in advance</h3>
+  <table>
+    <tr><th>If the budget is</th><th>What changes</th><th>What is still delivered</th></tr>
+    <tr><td>about 30,000</td><td>Nothing is cut</td>
+        <td>Library, app, relay, fuzz kit, field pilot, all audits</td></tr>
+    <tr><td>about 25,000</td><td>Smaller pilot, less interface polish</td>
+        <td>All ship gates still met</td></tr>
+    <tr><td>about 20,000</td><td>No external pilot, BLE only, no Wi-Fi Direct bulk transfer</td>
+        <td>Library, app, relay, fuzzing harness, works on the measured device matrix</td></tr>
+    <tr><td>below 20,000</td><td>We would rather not apply than over promise</td>
+        <td>The scope stops supporting the impact case honestly</td></tr>
+  </table>
+
+  <div class="box">
+    <b>What would make us stop and say so.</b> If, after six weeks of measurement, idle
+    mesh energy cannot get within a factor of two of the target on any device we own, we
+    will report that in the milestone note and narrow the battery claim rather than
+    quietly restate the number. The same applies to Wi-Fi Direct formation rates.
+  </div>
+</section>
+<section class="page">
+  <h2>7. Prior art, stated plainly</h2>
+  <p>MeshDoc is not the first mesh messenger, not the first CRDT library and not the
+  first humanitarian data tool. The claim is narrower and more defensible: encrypted,
+  signed, structured documents that converge over an intermittent serverless mesh, and
+  that are released as a permissive library rather than as an app.</p>
+
+  <table>
+    <tr><th style="width:24%;">Project</th><th style="width:24%;">What it is</th><th>Relationship to this work</th></tr>
+    <tr><td><b>Automerge, Yjs, Loro</b></td><td class="small">CRDT libraries and sync engines</td><td class="small">We use one of these rather than writing our own, cr-sqlite included. They deliberately leave identity, membership, encryption, discovery and relay to the application. That is the layer we build.</td></tr>
+<tr><td><b>Briar</b></td><td class="small">Messaging over Bluetooth, Wi-Fi and Tor</td><td class="small">Carries messages. Its roadmap lists collaborative document editing as future work. Documents are the payload here.</td></tr>
+<tr><td><b>Meshtastic</b></td><td class="small">Text and position over LoRa</td><td class="small">Different radio and a different payload. Interoperability is interesting later, not a competitor.</td></tr>
+<tr><td><b>qaul, Berty, Irdest</b></td><td class="small">Mesh and delay tolerant messaging or stack</td><td class="small">Message or routing primitives. No typed document that merges.</td></tr>
+<tr><td><b>KoboToolbox, ODK</b></td><td class="small">Field data collection</td><td class="small">The status quo, and server centric. Correct when a server exists. MeshDoc targets the case where it does not.</td></tr>
+<tr><td><b>Keyhive</b></td><td class="small">Group key agreement for local first data (NLnet funded)</td><td class="small">Solves keys, not transport or a field toolkit. A future dependency candidate for group keys.</td></tr>
+<tr><td><b>SecSync</b></td><td class="small">Encrypted CRDT exchange (NLnet funded)</td><td class="small">States the gap precisely. Server mediated, which is exactly what we are not.</td></tr>
+  </table>
+
+  <h3>What we will give back</h3>
+  <table>
+    <tr><th style="width:32%;">Contribution</th><th>Why it is useful to others</th></tr>
+    <tr><td>Transport crate</td>
+        <td>BLE discovery and Wi-Fi Direct formation behind a narrow trait, usable by any
+        local first project that needs peer discovery without Google services.</td></tr>
+    <tr><td>Partition fuzzing harness</td>
+        <td>Seeded edit and partition schedules with a differential oracle. Any CRDT backed
+        project can point it at their document types.</td></tr>
+    <tr><td>Schema migration guidance</td>
+        <td>Written notes on making CRDT migrations commute with merge, which is the part
+        most local first projects get wrong when they ship a second version.</td></tr>
+    <tr><td>Relay interoperability profile</td>
+        <td>A short document describing the mailbox format so other implementations can
+        serve the same clients, rather than one binary becoming the de facto standard.</td></tr>
+  </table>
+
+  <div class="box" style="margin-top:16px;">
+    <b>Why this belongs in the Open Internet Stack.</b> The commons already has excellent
+    pieces for messages and excellent pieces for documents, but the document pieces are
+    all server centric. What is missing is the middle layer that lets a document live on
+    a phone and reach another phone without a server in between. That layer is
+    infrastructure rather than a product, which is exactly the kind of thing that does
+    not get built unless somebody is paid to build it.
+  </div>
+
+  <p class="small muted" style="margin-top:16px;">
+    Source code, tests and demonstration recordings: <span class="mono">https://github.com/sushant-me/meshdoc</span><br>
+    Licence: MIT. No contributor licence agreement, no dual licensing, no patent
+    applications.
+  </p>
+</section>
+</body></html>

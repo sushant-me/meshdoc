@@ -15,9 +15,7 @@ import 'package:ffi/ffi.dart';
 
 import 'models.dart';
 
-// ---------------------------------------------------------------------------
 // Raw C signatures
-// ---------------------------------------------------------------------------
 
 typedef _VersionC = Pointer<Utf8> Function();
 typedef _VersionDart = Pointer<Utf8> Function();
@@ -102,7 +100,7 @@ class MeshDocEngine {
     }
   }
 
-  // ---------------------------------------------------------------- primitives
+  // primitives
 
   String _take(Pointer<Utf8> Function() call) {
     final ptr = call();
@@ -141,7 +139,7 @@ class MeshDocEngine {
 
   Map<String, dynamic> _obj(String json) => parseJsonObject(json);
 
-  // ------------------------------------------------------------------ methods
+  // methods
 
   String version() {
     final fn = _lib.lookupFunction<_VersionC, _VersionDart>('meshdoc_version');

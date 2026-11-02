@@ -93,11 +93,10 @@ impl Relay {
                             Ok(Some(request)) => {
                                 let store = Arc::clone(&store);
                                 // A panic in one handler must not kill the worker.
-                                let result = std::panic::catch_unwind(
-                                    std::panic::AssertUnwindSafe(|| {
+                                let result =
+                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                         http::handle(request, &store, max_blob_bytes);
-                                    }),
-                                );
+                                    }));
                                 if result.is_err() {
                                     eprintln!("relay: request handler panicked");
                                 }

@@ -13,7 +13,7 @@ import io.flutter.plugin.common.MethodChannel
  * The `nl.meshdoc/radio` platform channel.
  *
  * Contract is frozen in docs/INTERFACES.md section B. All errors are returned as
- * `result.error("radio", message, null)` — never as exceptions — and every method
+ * `result.error("radio", message, null)`, never as exceptions, and every method
  * works (or reports a clear reason) on hardware that lacks BLE or Wi-Fi Direct,
  * including emulators.
  */

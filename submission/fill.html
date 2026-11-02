@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MeshDoc NLnet submission helper</title>
+<style>
+ :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --text:#e6edf3; --dim:#8b949e;
+         --green:#3fb950; --blue:#58a6ff; --amber:#d29922; }
+ * { box-sizing: border-box; }
+ body { margin:0; background:var(--bg); color:var(--text);
+        font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+ header { position:sticky; top:0; background:#0d1117ee; backdrop-filter:blur(6px);
+          border-bottom:1px solid var(--line); padding:14px 20px; z-index:10; }
+ h1 { font-size:17px; margin:0 0 4px; }
+ .sub { color:var(--dim); font-size:13px; }
+ .bar { height:6px; background:#21262d; border-radius:3px; margin-top:10px; overflow:hidden; }
+ .bar > i { display:block; height:100%; width:0; background:var(--green); transition:width .2s; }
+ main { max-width:960px; margin:0 auto; padding:20px; }
+ .card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+         padding:14px 16px; margin:0 0 14px; }
+ .card.done { border-color:var(--green); }
+ .top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+ .label { font-weight:600; }
+ .field { color:var(--dim); font-size:12px; font-family:ui-monospace,monospace; }
+ .hint { color:var(--amber); font-size:12px; margin-top:2px; }
+ .target { font-family:ui-monospace,monospace; font-size:13px; color:var(--blue);
+           word-break:break-all; margin:8px 0 4px; }
+ textarea, .fakearea { width:100%; background:#0b0f14; color:var(--text);
+          border:1px solid var(--line); border-radius:8px; padding:10px;
+          font:13px/1.5 ui-monospace,monospace; resize:vertical; margin-top:8px; }
+ textarea { min-height:90px; }
+ .fakearea { white-space:pre-wrap; }
+ .row { display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
+ button { background:#21262d; color:var(--text); border:1px solid var(--line);
+          border-radius:8px; padding:7px 14px; font-size:13px; cursor:pointer; }
+ button:hover { background:#30363d; }
+ button.primary { background:#238636; border-color:#2ea043; }
+ button.copied { background:var(--green); border-color:var(--green); color:#04120a; }
+ .count { color:var(--dim); font-size:12px; font-family:ui-monospace,monospace; }
+ .over { color:#f85149; font-weight:600; }
+ .note { background:#1c2128; border-left:3px solid var(--amber); padding:12px 14px;
+         border-radius:6px; margin:0 0 18px; font-size:14px; }
+ .note b { color:var(--amber); }
+ code { font-family:ui-monospace,monospace; background:#21262d; padding:1px 5px; border-radius:4px; }
+</style></head>
+<body>
+<header>
+  <h1>MeshDoc, NLnet Restack submission helper</h1>
+  <div class="sub" id="status">0 of 0 fields copied</div>
+  <div class="bar"><i id="progress"></i></div>
+</header>
+<main>
+  <div class="note">
+    <b>Before you paste.</b> Work top to bottom; each card matches one field on
+    <code>nlnet.nl/propose/</code> and names the field it goes into. The counters show
+    exactly what the form will count.
+    <br><br>
+    If you paste this text as it is, the AI disclosure answers below are already the
+    truthful ones. If you rewrite the text in your own words, change
+    <code>used_ai</code> to the "I did not use" option and edit the disclosure
+    paragraph to say AI was used for research only. Do not claim the writing is
+    entirely yours while it is not.
+    <br><br>
+    Deadline: 3 November, 16:45 Nepal time. You can submit and resubmit until then;
+    only the last complete version counts.
+  </div>
+  <div id="app"></div>
+</main>
+<script>
+const FIELDS = [{"label": "Fund", "name": "call", "kind": "select", "value": "Restack_Fund", "human": "Restack Fund", "limit": null, "hint": "Pick this from the first dropdown"}, {"label": "Proposal title", "name": "project", "kind": "text", "value": "MeshDoc: encrypted documents that sync phone to phone without a server", "limit": 100, "hint": null}, {"label": "Project website / repository", "name": "website", "kind": "text", "value": "https://github.com/sushant-me/meshdoc", "limit": 100, "hint": "Website 2, 3 and 4 can stay empty"}, {"label": "Project summary", "name": "abstract", "kind": "textarea", "value": "MeshDoc is a reusable library stack for teams that cannot rely on the internet. An Android phone holds structured documents (checklists, supply forms, location notes) that are encrypted end to end and sync directly with other phones over Bluetooth and Wi-Fi Direct, then opportunistically through a relay anyone can host.\n\nThe gap is specific. The open stack has good tools for messages and good tools for documents, but document tools assume a server and message tools do not carry structured records. Nothing in between exists as a reusable layer, so every humanitarian project rebuilds it badly and separately.\n\nWe will deliver four Rust crates (core, crypto, sync, transport), a small relay and a reference Android app, all under MIT, so any NGO can run the result without asking us.\n\nA working prototype already exists: encrypted documents converging between two Android devices, 133 tests, and an Android client that installs and runs. Built in Kathmandu, where this failure is real.", "limit": 1000, "hint": "Shown as the summary field, max 1000 characters"}, {"label": "Amount requested (euros)", "name": "amount", "kind": "text", "value": "29920", "limit": null, "hint": "Just the number, no currency symbol"}, {"label": "Proposed effort", "name": "use", "kind": "textarea", "value": "Requested amount: 29,920 euro. That is 176 person-days at 170 euro per day and no other costs.\n\nWhere the rate comes from. A senior Rust and Android engineer in Kathmandu earns about NPR 400,000 a month, roughly 2,350 euro. Adding 28 percent employer on-costs (social security and the festival allowance) and 20 percent for studio overhead gives about 3,770 euro a month, or 174 euro for a 21.67 day month. We ask 170 euro, slightly below that. This is cost recovery, not consultancy pricing. We ask for no equipment, no hosting, no compute and no travel. The test phones already exist in the studio, and NLnet provides the security and accessibility audits as support services, so they cost the grant nothing.\n\nThe work is nine packages.\n\n1. Setup, architecture and threat model, 9 days. Public repository, licence, continuous integration, decision records and a written threat model that states what the system does not protect.\n\n2. Protocol core, cryptography and the document bridge, 34 days. Four document types, the change format, device identity, workspace epochs, key rotation, the schema registry and migration.\n\n3. Transport abstraction and a stock Android fast path, 20 days. One trait that any transport implements, plus a conformance suite so a new transport can be checked.\n\n4. Free software transports, 26 days. BLE discovery with rotating identifiers, Wi-Fi Direct group formation, bulk transfer, and full function on phones without Google Play Services. This is the package the grant is really about.\n\n5. Relay server and delay tolerant semantics, 14 days. The small store and forward service, rotating mailbox identifiers, quotas, eviction and an interoperability note.\n\n6. Android reference client, 26 days. A Compose interface with large targets, the join flow, sync status, accessibility and onboarding.\n\n7. Convergence and partition fuzzing, 18 days. A simulator, a seeded schedule generator, a differential oracle against a second CRDT implementation, and the energy measurement rig.\n\n8. Field pilot, user research and documentation, 17 days.\n\n9. Community, upstream publication and F-Droid release, 12 days.\n\nTwo people at roughly a third of full time each across twelve months. The first two months are deliberately light because payment is in arrears and we carry that period ourselves.\n\nPayment is tied to five milestones: foundations at month 2, core plus first transport at month 5, the full transport matrix at month 7, product and pilot evidence at month 10, release and handover at month 12. The accessibility and security audits sit as zero cost gates at months 9 and 11.", "limit": 4000, "hint": "Tasks, time, rate, expenses"}, {"label": "Comparison with other efforts", "name": "comparison", "kind": "textarea", "value": "MeshDoc is not the first mesh messenger, not the first CRDT library and not the first humanitarian data tool. The claim is the intersection: encrypted structured documents that converge over an intermittent, serverless mesh, released as a permissive library that others can build on.\n\nCRDT libraries. Automerge and Yjs, through its Rust port, already give convergence, and we will use one of them rather than write our own. What they deliberately leave to the application is identity, membership, encryption, peer discovery and a store and forward relay. Loro and cr-sqlite are in the same position. We build the missing layer rather than a new CRDT.\n\nMesh messengers. Briar carries messages over Bluetooth, Wi-Fi and Tor, and its roadmap lists collaborative document editing as future work. Meshtastic carries text and position over LoRa. qaul is a delay tolerant mesh messenger. Berty ships its own mesh stack. All of them make a message or a feed entry the unit of transfer. None ships a typed document that merges.\n\nHumanitarian data. KoboToolbox and ODK are what the field actually uses, and both are server centric: a central instance reconciles submissions. DHIS2 is a national platform. That is the right design when a server exists. MeshDoc targets the case where it does not, and reconciles with such a server later if one appears.\n\nClosest funded neighbours. SecSync, funded by NLnet, states the gap precisely: there is no plug and play way to exchange CRDTs with end to end encryption, and its own design is server mediated. Keyhive, also funded by NLnet, solves group key agreement for local first data, but it is not a field toolkit and has no transport. Irdest is the closest BLE mesh codebase and has no documents. Earthstar is adjacent but does not model typed humanitarian records.\n\nStandards. We build toward MLS (RFC 9420) for group keys and take concepts from Bundle Protocol (RFC 9171) for the relay, rather than inventing formats.\n\nWhat we will give back: a transport crate usable by other local first projects, a partition and merge fuzzing harness, written guidance on CRDT schema migration, and an interoperability profile for the relay. We would rather depend on the CRDT project we choose than fork it, and the transport work goes upstream as a crate rather than a patch.", "limit": 4000, "hint": "What is new and different"}, {"label": "Technical challenges", "name": "challenges", "kind": "textarea", "value": "1. Android background limits against the energy target. Doze, App Standby buckets and foreground service rules may forbid the behaviour the design needs. We will measure on named devices over eight hour windows with two independent instruments, an external power monitor and the on device charge counter, and report both. If the target cannot be met, we say so with numbers.\n\n2. BLE discovery privacy. A stable identifier is a tracking beacon. Our advertisement UUID is derived from the workspace key and rotates every fifteen minutes, and we will capture twenty four hours with a radio sniffer to measure what an observer can link. We will also state honestly that link layer tracking is outside what we can fix.\n\n3. Wi-Fi Direct reliability across vendors. Group formation behaves differently on Huawei, Xiaomi, Samsung and Google devices. The device matrix is a deliverable, not an assumption, and the reference app falls back to a plain Wi-Fi socket when group formation fails.\n\n4. CRDT growth over long partitions. Tombstones accumulate. Compaction must not break convergence, and a late joiner rebuilding from a snapshot must land in the same state. We test that explicitly.\n\n5. Schema migration across app versions. A replica on version two receiving a change from version one must not fork. Migration is written as a pure function and tested as commutative with merge.\n\n6. Key rotation during a partition. A removed member keeps the old key and can read old data. A partitioned member keeps using the old epoch until it sees the rotation. We document both limits rather than pretending rotation is revocation.\n\n7. Membership without a server. Possession of a key is not authorisation. We keep a signed append only membership log with epochs, and a change is accepted only if its author was a member at the claimed epoch in the receiver's own view of that log.\n\n8. Metadata at the relay. The operator cannot read content but can see a workspace pseudonym, blob sizes and upload timing. Mailbox identifiers rotate, and we state precisely what is and is not hidden.\n\n9. Testing convergence credibly. Random schedules are easy to generate and easy to fool. We combine exhaustive small scope interleavings, large randomised schedules, crash injection at every write boundary, and a differential oracle against a second implementation.\n\n10. The honest risk that the free software radio path is harder than expected. If group formation proves unworkable on enough devices, the transport trait lets us ship BLE discovery with a socket fallback, and we will say which parts were cut rather than quietly widen the claims.\n\n11. Blob transfer under tiny bandwidth. A photograph must never delay a checklist. Documents sync first and blobs only on request, with explicit priorities.\n\n12. Reproducible builds and F-Droid. A Rust, NDK and SQLite combination is notoriously hard to build bit for bit. We start that work in month one, not at release.", "limit": 4000, "hint": "What you expect to be hard"}, {"label": "Ecosystem", "name": "ecosystem", "kind": "textarea", "value": "Users. Field teams in disaster response, community health workers and NGOs who keep structured records on paper, or in a server backed tool that stops working when the network does. In Nepal that means organisations such as the Nepal Red Cross Society, the National Society for Earthquake Technology and district health offices, which we intend to approach for the pilot. The second audience is builders: other local first and humanitarian projects that would rather embed a crate than write one.\n\nDependencies. We depend on one CRDT implementation, on established Rust cryptography crates and on Android platform APIs. We depend on no vendor service. The relay needs only a Rust toolchain and a disk.\n\nWho depends on us. Any project that needs encrypted peer to peer documents, and the people who run relays, who need only a binary. The transport crate and the fuzzing harness are written to be general enough for other local first projects to use directly.\n\nEngagement. One upstream contribution merged per quarter with the CRDT project we build on. Patches sent to the Android transport work rather than a private fork. A talk at a local first or free software event each year. A publicly documented field pilot. And we will take up NLnet's own support services, the security audit and the accessibility scan, which we have budgeted as zero cost gates.", "limit": 2000, "hint": "Who the users are and how you engage them"}, {"label": "Background", "name": "experience", "kind": "textarea", "value": "I am Sushant, a software engineer in Kathmandu, Nepal, and I run Arvion Technologies, a small product studio.\n\nRelevant shipping history. I have built offline first sync before: an operation log with vector clocks and last writer wins conflict handling, designed to work with no server at all. I maintain several open Rust and TypeScript libraries, and I have shipped production Android and Flutter applications. I write Rust where correctness matters more than speed, and Kotlin or Dart where a person has to touch the result.\n\nThe prototype behind this application already runs. It has an encrypted CRDT core in Rust with 133 passing tests, a store and forward relay, BLE discovery with a rotating unlinkable identifier, Wi-Fi Direct group formation with a deterministic owner election, and an Android client that installs, launches, generates its own identity and syncs. I built it to find out whether the hard parts are as hard as they look, and to be able to say something true in this form rather than something hopeful.\n\nI am not a large team. Two of us will do this work, which is why the plan is conservative and the first months are funded by the studio.", "limit": 2000, "hint": "Why you are the right person"}, {"label": "Other funding", "name": "otherfunding", "kind": "textarea", "value": "No other funding. The project has none, and no part of it has been funded before this application. The prototype was built with studio time. Arvion Technologies is a commercial studio that takes client work, and this grant would fund people to work on the commons part of the problem rather than on client projects. There are no patents on any of it and no intention to file any.", "limit": 1000, "hint": null}, {"label": "AI disclosure: did you use AI in writing?", "name": "used_ai", "kind": "select", "value": "I have used generative AI in writing this proposal", "human": "Yes, I have used generative AI in writing this proposal", "limit": null, "hint": "Choose the yes option if you paste this text unchanged"}, {"label": "AI disclosure: prompts and detail", "name": "ai_prompt", "kind": "textarea", "value": "AI assistance was used while preparing this application. It was used to read and summarise NLnet's published material (the Restack call, the guide for applicants, the eligibility rules and the generative AI policy), to check the current state and the licences of comparable projects, to sanity check the budget arithmetic, and to help draft and structure the text of this form.\n\nThe technical design, the choices about scope, the plan and the arguments are mine. I can explain and defend any sentence in this application and I expect to be asked to.\n\nThe prototype in the linked repository was written with AI assistance in a coding and review capacity during an exploratory phase before this application. That is disclosed because the policy asks about pre-existing AI generated code. The funded work described here will be written by me and my colleague, not by an AI.\n\nI would rather over disclose than have it discovered later.", "limit": 8000, "hint": "What AI was used for"}, {"label": "AI disclosure: does the codebase contain AI-generated code?", "name": "codebase_used_ai", "kind": "select", "value": "yes", "human": "Yes, the codebase contains AI-generated code", "limit": null, "hint": null}, {"label": "AI disclosure: describe the AI use in the codebase", "name": "codebase_ai_clarification", "kind": "textarea", "value": "Part of the existing prototype was written with AI assistance, used as a coding and review tool during an exploratory phase before this application. It covers the Rust core, the relay and parts of the Android client. That code is public and MIT licensed, and it is not the work this grant would pay for.\n\nThe funded work described here will be written by me and my colleague. We will also publish a short contributor policy saying that generative AI may be used to review code but not to produce it, which follows the current NLnet policy and is the rule we want our contributors to follow.", "limit": 1000, "hint": null}, {"label": "Your name", "name": "requestor", "kind": "text", "value": "", "limit": 100, "hint": "You must fill this in"}, {"label": "Email address", "name": "email", "kind": "text", "value": "", "limit": 100, "hint": "You must fill this in"}, {"label": "Phone number", "name": "phone", "kind": "text", "value": "", "limit": 100, "hint": "Include the country code"}, {"label": "Type of applicant", "name": "entity", "kind": "select", "value": "SME", "human": "SME company (small/medium enterprise)", "limit": null, "hint": null}, {"label": "Name of organisation", "name": "organization", "kind": "text", "value": "", "limit": 100, "hint": "Arvion Technologies, if you apply as the company"}, {"label": "Country", "name": "country", "kind": "select", "value": "", "human": "You fill this in", "limit": null, "hint": "Nepal"}];
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+let total = 0, done = 0;
+const statusEl = document.getElementById('status');
+const progressEl = document.getElementById('progress');
+
+function refresh() {
+  statusEl.textContent = done + ' of ' + total + ' fields copied';
+  progressEl.style.width = total ? (done / total * 100) + '%' : '0%';
+}
+
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+const app = document.getElementById('app');
+
+FIELDS.forEach((f, i) => {
+  if (!f.value && f.kind !== 'select') {
+    // Personal fields the applicant fills in themselves.
+    const card = el('div', 'card');
+    const top = el('div', 'top');
+    top.appendChild(el('span', 'label', f.label));
+    top.appendChild(el('span', 'field', f.name));
+    card.appendChild(top);
+    if (f.hint) card.appendChild(el('div', 'hint', f.hint));
+    const input = el('input');
+    input.className = 'fakearea';
+    input.style.minHeight = '0';
+    input.placeholder = 'You fill this in';
+    card.appendChild(input);
+    app.appendChild(card);
+    return;
+  }
+
+  total++;
+  const card = el('div', 'card');
+  card.id = 'card-' + i;
+
+  const top = el('div', 'top');
+  top.appendChild(el('span', 'label', f.label));
+  top.appendChild(el('span', 'field', f.name + (f.limit ? ' (max ' + f.limit + ')' : '')));
+  card.appendChild(top);
+  if (f.hint) card.appendChild(el('div', 'hint', f.hint));
+
+  const target = f.kind === 'select' ? f.value : f.value;
+  if (f.kind === 'select') {
+    const t = el('div', 'target', target);
+    card.appendChild(t);
+    card.appendChild(el('div', 'hint', 'Choose this option: ' + f.human));
+  } else {
+    const ta = el('textarea');
+    ta.readOnly = true;
+    ta.value = f.value;
+    ta.rows = Math.min(14, Math.max(3, Math.ceil(f.value.length / 95)));
+    card.appendChild(ta);
+  }
+
+  const row = el('div', 'row');
+  const btn = el('button', 'primary', 'Copy');
+  const mark = el('button', '', 'Mark done');
+  const count = el('span', 'count');
+  const len = f.kind === 'select' ? 0 : f.value.length;
+  if (f.limit) {
+    const left = f.limit - len;
+    count.textContent = len + ' / ' + f.limit + ' (' + left + ' left)';
+    if (left < 0) count.className = 'count over';
+  } else {
+    count.textContent = len + ' chars';
+  }
+
+  btn.onclick = async () => {
+    const ok = await copy(f.kind === 'select' ? f.value : f.value);
+    if (ok) {
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1200);
+    } else {
+      btn.textContent = 'Select manually';
+      const ta = card.querySelector('textarea');
+      if (ta) { ta.focus(); ta.select(); }
+    }
+  };
+
+  mark.onclick = () => {
+    card.classList.toggle('done');
+    done += card.classList.contains('done') ? 1 : -1;
+    mark.textContent = card.classList.contains('done') ? 'Done' : 'Mark done';
+    refresh();
+  };
+
+  row.appendChild(btn);
+  row.appendChild(mark);
+  row.appendChild(count);
+  card.appendChild(row);
+  app.appendChild(card);
+});
+
+refresh();
+</script>
+</body></html>

@@ -1,28 +1,29 @@
-//! # MeshDoc
+//! MeshDoc: offline-first, end-to-end-encrypted collaboration for teams without
+//! reliable connectivity.
 //!
-//! Offline-first, end-to-end-encrypted collaboration for teams without reliable
-//! connectivity.
+//! The reusable library stack, in pieces:
 //!
-//! This crate is the reusable library stack. The pieces:
-//!
-//! * [`crypto`] — device identity (Ed25519 + X25519), workspace epoch keys,
+//! * [`crypto`]: device identity (Ed25519 + X25519), workspace epoch keys,
 //!   XChaCha20-Poly1305 envelopes, key grants.
-//! * [`ids`] — workspace/document/peer/change identifiers and epochs.
-//! * [`membership`] — signed, append-only membership log with key-rotation epochs.
-//! * [`docs`] — typed CRDT documents (checklist, supply form, geo point, note).
-//! * [`change`] — the encrypted, signed change envelope: the only thing that
-//!   ever travels over any wire.
-//! * [`sync`] — anti-entropy reconciliation between peers.
-//! * [`transport`] — the `MeshTransport` abstraction plus implementations.
-//! * [`store`] — encrypted local persistence.
-//! * [`relay`] — the client side of the dumb store-and-forward relay.
-//! * [`node`] — ties it together into a running peer.
+//! * [`ids`]: workspace, document, peer and change identifiers.
+//! * [`membership`]: signed, append-only membership log with key-rotation epochs.
+//! * [`docs`]: typed CRDT documents (checklist, supply form, geo point, note).
+//! * [`change`]: the encrypted, signed change envelope, the only thing that ever
+//!   crosses a wire.
+//! * [`sync`]: anti-entropy reconciliation between peers.
+//! * [`transport`]: the `MeshTransport` abstraction and its implementations.
+//! * [`store`]: encrypted local persistence.
+//! * [`relay`]: client side of the store-and-forward relay.
+//! * [`node`]: ties it together into a running peer.
 //!
-//! Design invariants:
-//! 1. Every wire format is encrypted then transported.
-//! 2. No server is required for correctness. The relay is optional and untrusted.
-//! 3. Every change is attributable to a key that appears in the membership log.
-//! 4. The workspace id is never derived from a key, so rotation never breaks it.
+//! Four rules that hold everywhere:
+//!
+//! 1. Encrypt first, then transport. The mesh, the relay and a seized disk all see
+//!    the same thing: ciphertext.
+//! 2. No server is needed for correctness. The relay is optional and untrusted.
+//! 3. A change is attributable to a key in the membership log, so a leaked
+//!    workspace key lets you read but not write.
+//! 4. A workspace id never comes from a key. Rotation must not break references.
 
 pub mod ble;
 pub mod change;

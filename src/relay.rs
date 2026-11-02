@@ -3,13 +3,12 @@
 //! The relay is a deliberately dumb store-and-forward mailbox: it keeps opaque,
 //! content-addressed blobs per workspace, assigns each one a per-workspace
 //! monotonic sequence number, and hands them back on demand (see
-//! `relay/README.md`). This module is the client half — a small HTTP/1.1 client
+//! `relay/README.md`). This module is the client half, a small HTTP/1.1 client
 //! built directly on [`std::net::TcpStream`] so the library does not pull in an
 //! async runtime, TLS stack or HTTP crate just to talk to a mailbox. The
 //! transport is plaintext HTTP; run the relay behind a TLS terminator when the
 //! network path is untrusted.
 //!
-//! # Behaviour
 //!
 //! * Request framing is explicit: `Host`, `Content-Length`, `Connection: close`
 //!   and, for uploads, `Content-Type: application/octet-stream`.
@@ -30,7 +29,6 @@
 //! Blob *contents* are never logged or embedded in error messages, and the
 //! optional bearer token never appears in [`std::fmt::Debug`] output.
 //!
-//! # Example
 //!
 //! ```no_run
 //! use meshdoc::ids::WorkspaceId;
@@ -204,7 +202,7 @@ impl RelayClient {
     /// Accepts `http://host:port`, `http://host:port/`, and the scheme-less
     /// `host:port` form. The port defaults to 80 when omitted. `https`, any
     /// other scheme, a non-empty path, userinfo, a query string and a port of 0
-    /// are rejected with [`RelayError::BadUrl`] — this client speaks plaintext
+    /// are rejected with [`RelayError::BadUrl`], this client speaks plaintext
     /// HTTP/1.1 only, so it refuses to pretend otherwise.
     pub fn new(base_url: &str) -> Result<Self, RelayError> {
         let (host, port) = parse_base_url(base_url)?;
@@ -421,7 +419,7 @@ impl RelayClient {
         parse_json(&response.body, "blob listing")
     }
 
-    /// `GET /v1/ws/{wsid}/head` — the highest live sequence number (0 when the
+    /// `GET /v1/ws/{wsid}/head`, the highest live sequence number (0 when the
     /// workspace is empty on the relay).
     pub fn head(&self, ws: WorkspaceId) -> Result<u64, RelayError> {
         let target = format!("/v1/ws/{}/head", ws.to_hex());
@@ -454,7 +452,7 @@ impl RelayClient {
     ///
     /// This asks `head` once. An empty workspace is filled with plain POSTs. A
     /// non-empty workspace is listed once (`fetch_since(0)`), and only changes
-    /// whose content id is absent are POSTed — the relay has no ids-only listing
+    /// whose content id is absent are POSTed, the relay has no ids-only listing
     /// endpoint, so one listing pass is the cheapest way to avoid re-uploading.
     /// Blobs are content-addressed, so the comparison is against
     /// `blake3(body)[..32]`, exactly the id the relay assigns. If the relay ever
@@ -495,9 +493,7 @@ impl RelayClient {
     }
 }
 
-// ---------------------------------------------------------------------------
 // URL parsing
-// ---------------------------------------------------------------------------
 
 /// Parse `http://host:port`, `http://host:port/` or `host:port` (port defaults
 /// to 80) into a host and port. Bracketed IPv6 literals are supported.
@@ -586,28 +582,28 @@ fn encode_path_segment(segment: &str) -> String {
     encoded
 }
 
-/// First 32 hex characters of `blake3(body)` — the content id the relay assigns.
+/// First 32 hex characters of `blake3(body)`, the content id the relay assigns.
 fn content_id(data: &[u8]) -> String {
     let hex = blake3::hash(data).to_hex();
     hex.as_str()[..32].to_string()
 }
 
-// ---------------------------------------------------------------------------
 // Socket setup
-// ---------------------------------------------------------------------------
 
 fn configure_socket(stream: TcpStream, timeout: Duration) -> Result<TcpStream, RelayError> {
     // Latency matters more than packet count for tiny request/response pairs.
     let _ = stream.set_nodelay(true);
-    let timeout = if timeout.is_zero() { None } else { Some(timeout) };
+    let timeout = if timeout.is_zero() {
+        None
+    } else {
+        Some(timeout)
+    };
     stream.set_read_timeout(timeout)?;
     stream.set_write_timeout(timeout)?;
     Ok(stream)
 }
 
-// ---------------------------------------------------------------------------
 // Response reading
-// ---------------------------------------------------------------------------
 
 /// A parsed HTTP response: status and (fully reassembled) body.
 struct HttpResponse {
@@ -862,9 +858,7 @@ fn read_line_limited<R: BufRead>(
         .map_err(|_| RelayError::Protocol(format!("relay {what} is not valid UTF-8")))
 }
 
-// ---------------------------------------------------------------------------
 // Wire types
-// ---------------------------------------------------------------------------
 
 #[derive(Deserialize)]
 struct HealthWire {

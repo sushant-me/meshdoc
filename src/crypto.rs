@@ -41,7 +41,9 @@ impl std::fmt::Display for CryptoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CryptoError::Seal => write!(f, "encryption failed"),
-            CryptoError::Open => write!(f, "decryption failed (wrong key, wrong epoch, or tampered)"),
+            CryptoError::Open => {
+                write!(f, "decryption failed (wrong key, wrong epoch, or tampered)")
+            }
             CryptoError::Short => write!(f, "ciphertext too short"),
             CryptoError::Verify => write!(f, "signature verification failed"),
             CryptoError::BadKey => write!(f, "malformed key material"),
@@ -80,11 +82,15 @@ impl PublicIdentity {
         Self { verify: v, dh: d }
     }
 
-    pub fn to_hex(&self) -> String { hex(&self.to_bytes()) }
+    pub fn to_hex(&self) -> String {
+        hex(&self.to_bytes())
+    }
 
     pub fn from_hex(s: &str) -> Option<Self> {
         let raw = unhex(s)?;
-        if raw.len() != 64 { return None; }
+        if raw.len() != 64 {
+            return None;
+        }
         let mut b = [0u8; 64];
         b.copy_from_slice(&raw);
         Some(Self::from_bytes(&b))
@@ -101,11 +107,15 @@ impl PublicIdentity {
         VerifyingKey::from_bytes(&self.verify).map_err(|_| CryptoError::BadKey)
     }
 
-    pub fn dh_public(&self) -> X25519Public { X25519Public::from(self.dh) }
+    pub fn dh_public(&self) -> X25519Public {
+        X25519Public::from(self.dh)
+    }
 
     /// Verify `sig` over `msg`.
     pub fn verify(&self, msg: &[u8], sig: &[u8]) -> Result<(), CryptoError> {
-        if sig.len() != SIG_LEN { return Err(CryptoError::Short); }
+        if sig.len() != SIG_LEN {
+            return Err(CryptoError::Short);
+        }
         let vk = self.verifying_key()?;
         let mut s = [0u8; SIG_LEN];
         s.copy_from_slice(sig);
@@ -141,7 +151,9 @@ impl Identity {
         }
     }
 
-    pub fn fingerprint(&self) -> PeerId { self.public().fingerprint() }
+    pub fn fingerprint(&self) -> PeerId {
+        self.public().fingerprint()
+    }
 
     pub fn sign(&self, msg: &[u8]) -> [u8; SIG_LEN] {
         self.signing.sign(msg).to_bytes()
@@ -169,13 +181,17 @@ impl WorkspaceKey {
     }
 
     pub fn from_slice(s: &[u8]) -> Result<Self, CryptoError> {
-        if s.len() != KEY_LEN { return Err(CryptoError::Short); }
+        if s.len() != KEY_LEN {
+            return Err(CryptoError::Short);
+        }
         let mut k = [0u8; KEY_LEN];
         k.copy_from_slice(s);
         Ok(Self(k))
     }
 
-    pub fn as_bytes(&self) -> &[u8; KEY_LEN] { &self.0 }
+    pub fn as_bytes(&self) -> &[u8; KEY_LEN] {
+        &self.0
+    }
 
     /// Encrypt `plaintext` with `aad` bound in. Output: nonce || ciphertext.
     pub fn seal(&self, plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>, CryptoError> {
@@ -184,7 +200,13 @@ impl WorkspaceKey {
         let mut nonce = [0u8; NONCE_LEN];
         OsRng.fill_bytes(&mut nonce);
         let ct = cipher
-            .encrypt(XNonce::from_slice(&nonce), Payload { msg: plaintext, aad })
+            .encrypt(
+                XNonce::from_slice(&nonce),
+                Payload {
+                    msg: plaintext,
+                    aad,
+                },
+            )
             .map_err(|_| CryptoError::Seal)?;
         let mut out = Vec::with_capacity(NONCE_LEN + ct.len());
         out.extend_from_slice(&nonce);
@@ -194,7 +216,9 @@ impl WorkspaceKey {
 
     /// Decrypt output of [`WorkspaceKey::seal`].
     pub fn open(&self, sealed: &[u8], aad: &[u8]) -> Result<Vec<u8>, CryptoError> {
-        if sealed.len() < NONCE_LEN + 16 { return Err(CryptoError::Short); }
+        if sealed.len() < NONCE_LEN + 16 {
+            return Err(CryptoError::Short);
+        }
         let cipher = XChaCha20Poly1305::new_from_slice(&self.0).map_err(|_| CryptoError::BadKey)?;
         let (nonce, ct) = sealed.split_at(NONCE_LEN);
         cipher
@@ -211,7 +235,9 @@ impl std::fmt::Debug for WorkspaceKey {
 }
 
 impl Drop for WorkspaceKey {
-    fn drop(&mut self) { self.0.zeroize(); }
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
 }
 
 fn grant_kdf(shared: &[u8]) -> [u8; 32] {
@@ -236,7 +262,9 @@ pub fn seal_key_grant(
 
 /// Open a key grant addressed to `me`.
 pub fn open_key_grant(me: &Identity, blob: &[u8]) -> Result<WorkspaceKey, CryptoError> {
-    if blob.len() < 32 + NONCE_LEN + 16 { return Err(CryptoError::Short); }
+    if blob.len() < 32 + NONCE_LEN + 16 {
+        return Err(CryptoError::Short);
+    }
     let (eph_bytes, rest) = blob.split_at(32);
     let mut eb = [0u8; 32];
     eb.copy_from_slice(eph_bytes);

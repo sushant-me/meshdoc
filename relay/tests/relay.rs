@@ -24,9 +24,7 @@ const WSID_A: &str = "0123456789abcdef0123456789abcdef";
 const WSID_B: &str = "fedcba9876543210fedcba9876543210";
 const DEFAULT_MAX: usize = 8 * 1024 * 1024;
 
-// ---------------------------------------------------------------------------
 // Harness
-// ---------------------------------------------------------------------------
 
 struct Harness {
     relay: Option<Relay>,
@@ -130,9 +128,7 @@ fn unique_dir() -> PathBuf {
     dir
 }
 
-// ---------------------------------------------------------------------------
 // Minimal blocking HTTP/1.1 client (no extra dependencies)
-// ---------------------------------------------------------------------------
 
 #[derive(Debug)]
 struct HttpResponse {
@@ -162,22 +158,15 @@ impl HttpResponse {
     }
 }
 
-fn http_request(
-    addr: SocketAddr,
-    method: &str,
-    path: &str,
-    body: Option<&[u8]>,
-) -> HttpResponse {
-    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(10))
-        .expect("connect to relay");
+fn http_request(addr: SocketAddr, method: &str, path: &str, body: Option<&[u8]>) -> HttpResponse {
+    let mut stream =
+        TcpStream::connect_timeout(&addr, Duration::from_secs(10)).expect("connect to relay");
     stream
         .set_read_timeout(Some(Duration::from_secs(60)))
         .expect("set read timeout");
     let _ = stream.set_nodelay(true);
 
-    let mut head = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n"
-    );
+    let mut head = format!("{method} {path} HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n");
     if let Some(data) = body {
         head.push_str("Content-Type: application/octet-stream\r\n");
         head.push_str(&format!("Content-Length: {}\r\n", data.len()));
@@ -186,7 +175,9 @@ fn http_request(
     }
     head.push_str("\r\n");
 
-    stream.write_all(head.as_bytes()).expect("write request head");
+    stream
+        .write_all(head.as_bytes())
+        .expect("write request head");
     if let Some(data) = body {
         stream.write_all(data).expect("write request body");
     }
@@ -235,7 +226,11 @@ fn read_response(stream: &mut TcpStream) -> HttpResponse {
         while body.len() < length {
             let read = stream.read(&mut chunk).expect("read response body");
             if read == 0 {
-                panic!("connection closed mid-body (got {} of {})", body.len(), length);
+                panic!(
+                    "connection closed mid-body (got {} of {})",
+                    body.len(),
+                    length
+                );
             }
             body.extend_from_slice(&chunk[..read]);
         }
@@ -289,9 +284,7 @@ fn blobs_since(h: &Harness, wsid: &str, since: u64) -> Value {
     response.json()
 }
 
-// ---------------------------------------------------------------------------
 // (a) health
-// ---------------------------------------------------------------------------
 
 #[test]
 fn health_returns_ok() {
@@ -307,9 +300,7 @@ fn health_returns_ok() {
     assert_eq!(body["blobs"], 0);
 }
 
-// ---------------------------------------------------------------------------
 // (b) POST then GET since=0, base64 round-trips byte-for-byte
-// ---------------------------------------------------------------------------
 
 #[test]
 fn post_then_get_round_trips_binary() {
@@ -342,9 +333,7 @@ fn post_then_get_round_trips_binary() {
     assert_eq!(head["count"], 1);
 }
 
-// ---------------------------------------------------------------------------
 // (c) duplicate POST is idempotent
-// ---------------------------------------------------------------------------
 
 #[test]
 fn duplicate_post_is_idempotent() {
@@ -372,9 +361,7 @@ fn duplicate_post_is_idempotent() {
     assert_eq!(health(&harness)["blobs"], 2);
 }
 
-// ---------------------------------------------------------------------------
 // (d) GET since=<seq> excludes earlier blobs
-// ---------------------------------------------------------------------------
 
 #[test]
 fn get_since_excludes_earlier_blobs() {
@@ -415,9 +402,7 @@ fn get_since_excludes_earlier_blobs() {
     assert_eq!(unknown["cursor"], 0);
 }
 
-// ---------------------------------------------------------------------------
 // (e) restart on the same data dir preserves blobs
-// ---------------------------------------------------------------------------
 
 #[test]
 fn restart_preserves_blobs() {
@@ -473,14 +458,14 @@ fn restart_preserves_blobs() {
     assert_eq!(blob_files, 4);
     assert!(names.contains(&"seq".to_string()));
     assert_eq!(
-        fs::read_to_string(workspace_dir.join("seq")).unwrap().trim(),
+        fs::read_to_string(workspace_dir.join("seq"))
+            .unwrap()
+            .trim(),
         "4"
     );
 }
 
-// ---------------------------------------------------------------------------
 // (f) malformed wsid -> 401/400, and no path traversal
-// ---------------------------------------------------------------------------
 
 #[test]
 fn malformed_wsid_rejected() {
@@ -544,12 +529,15 @@ fn malformed_wsid_rejected() {
         "invalid requests must not create storage, found {:?}",
         entries
     );
-    assert!(!harness.data_dir().parent().unwrap().join("mesh-doc-escape").exists());
+    assert!(!harness
+        .data_dir()
+        .parent()
+        .unwrap()
+        .join("mesh-doc-escape")
+        .exists());
 }
 
-// ---------------------------------------------------------------------------
 // (g) oversize body -> 413
-// ---------------------------------------------------------------------------
 
 #[test]
 fn oversize_body_rejected() {
@@ -569,9 +557,7 @@ fn oversize_body_rejected() {
     assert_eq!(health(&harness)["blobs"], 1);
 }
 
-// ---------------------------------------------------------------------------
 // (h) concurrency: 8 threads x 25 blobs, no duplicate seqs
-// ---------------------------------------------------------------------------
 
 #[test]
 fn concurrent_posts_get_distinct_seqs() {
@@ -650,9 +636,7 @@ fn concurrent_posts_get_distinct_seqs() {
     assert_eq!(sorted, (1..=200).collect::<Vec<u64>>(), "ordered ascending");
 }
 
-// ---------------------------------------------------------------------------
 // Extra: 256-per-page limit and "more"
-// ---------------------------------------------------------------------------
 
 #[test]
 fn pagination_limits_to_256_and_sets_more() {
@@ -690,9 +674,7 @@ fn pagination_limits_to_256_and_sets_more() {
     assert_eq!(seen, (1..=TOTAL).collect::<Vec<u64>>());
 }
 
-// ---------------------------------------------------------------------------
 // Extra: delete + head semantics
-// ---------------------------------------------------------------------------
 
 #[test]
 fn delete_blob_and_head() {
@@ -735,9 +717,7 @@ fn delete_blob_and_head() {
     assert_eq!(malformed.status, 400);
 }
 
-// ---------------------------------------------------------------------------
 // Extra: unknown workspace head is zero, and non-hex/uppercase ids rejected
-// ---------------------------------------------------------------------------
 
 #[test]
 fn empty_workspace_and_id_validation() {

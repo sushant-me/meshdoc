@@ -55,7 +55,12 @@ impl DocType {
         }
     }
     pub fn all() -> [DocType; 4] {
-        [DocType::Checklist, DocType::SupplyForm, DocType::GeoPoint, DocType::Note]
+        [
+            DocType::Checklist,
+            DocType::SupplyForm,
+            DocType::GeoPoint,
+            DocType::Note,
+        ]
     }
 }
 
@@ -136,13 +141,21 @@ impl Document {
     }
 
     /// Wrap an existing CRDT document (e.g. one loaded from the store).
-    pub fn from_doc(id: DocId, doc: Doc) -> Self { Self { id, doc } }
+    pub fn from_doc(id: DocId, doc: Doc) -> Self {
+        Self { id, doc }
+    }
 
-    pub fn id(&self) -> DocId { self.id }
+    pub fn id(&self) -> DocId {
+        self.id
+    }
 
-    pub fn doc(&self) -> &Doc { &self.doc }
+    pub fn doc(&self) -> &Doc {
+        &self.doc
+    }
 
-    pub fn into_doc(self) -> Doc { self.doc }
+    pub fn into_doc(self) -> Doc {
+        self.doc
+    }
 
     pub fn ty(&self) -> DocType {
         let meta = self.doc.get_or_insert_map("meta");
@@ -171,7 +184,7 @@ impl Document {
         meta.insert(&mut txn, "title", t);
     }
 
-    // ---------------------------------------------------------------- checklist
+    // checklist
 
     fn items_map_read(&self) -> Option<MapRef> {
         let data = self.doc.get_or_insert_map("data");
@@ -208,9 +221,13 @@ impl Document {
 
     pub fn set_item_done(&self, item_id: &str, done: bool, by: &PublicIdentity) -> bool {
         let now = now_unix();
-        let Some(items) = self.items_map_read() else { return false };
+        let Some(items) = self.items_map_read() else {
+            return false;
+        };
         let mut txn = self.doc.transact_mut();
-        let Some(Out::YMap(m)) = items.get(&txn, item_id) else { return false };
+        let Some(Out::YMap(m)) = items.get(&txn, item_id) else {
+            return false;
+        };
         m.insert(&mut txn, "done", done);
         if done {
             m.insert(&mut txn, "doneBy", by.to_hex());
@@ -223,13 +240,17 @@ impl Document {
     }
 
     pub fn remove_item(&self, item_id: &str) -> bool {
-        let Some(items) = self.items_map_read() else { return false };
+        let Some(items) = self.items_map_read() else {
+            return false;
+        };
         let mut txn = self.doc.transact_mut();
         items.remove(&mut txn, item_id).is_some()
     }
 
     pub fn iter_items(&self) -> Vec<ChecklistItem> {
-        let Some(items) = self.items_map_read() else { return vec![] };
+        let Some(items) = self.items_map_read() else {
+            return vec![];
+        };
         let txn = self.doc.transact();
         let mut out = vec![];
         for (id, val) in items.iter(&txn) {
@@ -239,7 +260,14 @@ impl Document {
             let done_by = m.get_as::<_, String>(&txn, "doneBy").ok();
             let done_at = m.get_as::<_, i64>(&txn, "doneAt").ok();
             let pos = m.get_as::<_, f64>(&txn, "pos").unwrap_or(0.0);
-            out.push(ChecklistItem { id: id.to_string(), text, done, done_by, done_at, pos });
+            out.push(ChecklistItem {
+                id: id.to_string(),
+                text,
+                done,
+                done_by,
+                done_at,
+                pos,
+            });
         }
         // Convergent ordering. Two replicas can append concurrently and produce the
         // same `pos`, so the id is a deterministic tie-break: every replica then
@@ -259,7 +287,7 @@ impl Document {
         (items.iter().filter(|i| i.done).count(), items.len())
     }
 
-    // -------------------------------------------------------------- supply form
+    // supply form
 
     fn fields_map_read(&self) -> Option<MapRef> {
         let data = self.doc.get_or_insert_map("data");
@@ -305,7 +333,9 @@ impl Document {
     }
 
     pub fn iter_fields(&self) -> Vec<SupplyField> {
-        let Some(fields) = self.fields_map_read() else { return vec![] };
+        let Some(fields) = self.fields_map_read() else {
+            return vec![];
+        };
         let txn = self.doc.transact();
         let mut out = vec![];
         for (id, val) in fields.iter(&txn) {
@@ -320,7 +350,7 @@ impl Document {
         out
     }
 
-    // ----------------------------------------------------------------- geopoint
+    // geopoint
 
     pub fn set_location(&self, lat: f64, lon: f64, label: &str, kind: &str) {
         let data = self.doc.get_or_insert_map("data");
@@ -342,7 +372,7 @@ impl Document {
         }
     }
 
-    // --------------------------------------------------------------------- note
+    // note
 
     pub fn set_text(&self, s: &str) {
         let data = self.doc.get_or_insert_map("data");
@@ -361,7 +391,7 @@ impl Document {
         data.get_as::<_, String>(&txn, "body").unwrap_or_default()
     }
 
-    // -------------------------------------------------------------- CRDT plumbing
+    // CRDT plumbing
 
     /// Encode the full state as a CRDT update.
     pub fn encode_state(&self) -> Vec<u8> {
@@ -398,21 +428,23 @@ impl Document {
         Ok(())
     }
 
-    // ------------------------------------------------------------------ migration
+    // migration
 
     /// Migrate to [`SCHEMA_VERSION`].
     ///
-    /// This only records the schema version; it deliberately does **not** create
+    /// This only records the schema version; it deliberately does not create
     /// containers. Containers belong to the document's origin, which creates them
     /// once in [`Document::create`]. A replica that created its own container while
     /// simultaneously receiving the origin's would end up with two competing Yjs
     /// objects under the same key, and which one is visible would depend on client-id
-    /// ordering — i.e. convergence would become a coin flip. Lazy creation in the
+    /// ordering, i.e. convergence would become a coin flip. Lazy creation in the
     /// mutators below covers the (rare) case of a local edit on a document whose
     /// container is genuinely absent.
     pub fn migrate(&self) -> u32 {
         let from = self.schema();
-        if from >= SCHEMA_VERSION { return from; }
+        if from >= SCHEMA_VERSION {
+            return from;
+        }
         let meta = self.doc.get_or_insert_map("meta");
         let mut txn = self.doc.transact_mut();
         meta.insert(&mut txn, "schema", SCHEMA_VERSION as f64);
@@ -429,7 +461,12 @@ impl Document {
                 let (done, total) = self.checklist_progress();
                 s.push_str(&format!("  progress: {done}/{total}\n"));
                 for it in self.iter_items() {
-                    s.push_str(&format!("  [{}] {} ({})\n", if it.done { "x" } else { " " }, it.text, &it.id[..8]));
+                    s.push_str(&format!(
+                        "  [{}] {} ({})\n",
+                        if it.done { "x" } else { " " },
+                        it.text,
+                        &it.id[..8]
+                    ));
                 }
             }
             DocType::SupplyForm => {
@@ -439,7 +476,10 @@ impl Document {
             }
             DocType::GeoPoint => {
                 let g = self.location();
-                s.push_str(&format!("  ({:.5}, {:.5}) {} [{}]\n", g.lat, g.lon, g.label, g.kind));
+                s.push_str(&format!(
+                    "  ({:.5}, {:.5}) {} [{}]\n",
+                    g.lat, g.lon, g.label, g.kind
+                ));
             }
             DocType::Note => {
                 s.push_str(&format!("  {}\n", self.text()));
@@ -475,7 +515,10 @@ fn new_item_id() -> String {
     rand::rngs::OsRng.fill_bytes(&mut b);
     let mut s = String::with_capacity(12);
     const T: &[u8; 16] = b"0123456789abcdef";
-    for x in b { s.push(T[(x >> 4) as usize] as char); s.push(T[(x & 0xf) as usize] as char); }
+    for x in b {
+        s.push(T[(x >> 4) as usize] as char);
+        s.push(T[(x & 0xf) as usize] as char);
+    }
     s
 }
 
@@ -491,7 +534,9 @@ mod tests {
     use super::*;
     use crate::crypto::Identity;
 
-    fn id() -> PublicIdentity { Identity::generate().public() }
+    fn id() -> PublicIdentity {
+        Identity::generate().public()
+    }
 
     #[test]
     fn checklist_add_and_toggle() {
@@ -570,7 +615,7 @@ mod tests {
     #[test]
     fn concurrent_note_writes_converge_to_one_value() {
         // A note body is a last-writer-wins register, so two concurrent whole-body
-        // writes converge to exactly one of the two values — deterministically the
+        // writes converge to exactly one of the two values, deterministically the
         // same one on every replica.
         let did = DocId::random();
         let d1 = Document::create(did, DocType::Note, &id(), "note");
@@ -628,7 +673,11 @@ mod tests {
         eager.apply_update(&c0).unwrap();
         eager.apply_update(&c1).unwrap();
 
-        assert_eq!(late.text(), "revision 27", "out-of-order dependency must resolve");
+        assert_eq!(
+            late.text(),
+            "revision 27",
+            "out-of-order dependency must resolve"
+        );
         assert_eq!(eager.text(), "revision 27");
         assert_eq!(late.text(), eager.text());
     }

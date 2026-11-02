@@ -1,34 +1,28 @@
-//! BLE discovery: the privacy-preserving advertisement scheme.
+//! BLE discovery.
 //!
-//! Discovery must answer one question — *is a workspace peer nearby?* — without
-//! telling anyone else: who you are, which workspace you are in, or that you are
-//! running MeshDoc at all.
+//! A device only needs to find other devices in the same workspace. It should not
+//! reveal who it is, which workspace it is in, or even that it runs MeshDoc.
 //!
-//! # Design
-//!
-//! A device advertises a **128-bit service UUID** that rotates every
-//! [`BUCKET_SECONDS`]:
+//! So the advertised service UUID comes from the workspace epoch key and changes
+//! every bucket:
 //!
 //! ```text
-//! discovery_key = BLAKE3-derive-key("meshdoc-ble-discovery-v1", epoch_key)
-//! uuid(bucket)  = BLAKE3-keyed(discovery_key, "uuid" || bucket_le)[0..16]
+//! discovery_key  = BLAKE3-derive-key("meshdoc-ble-discovery-v1", epoch_key)
+//! uuid(bucket)   = BLAKE3-keyed(discovery_key, "uuid" || bucket_le)[0..16]
 //! payload(bucket)= BLAKE3-keyed(discovery_key, "payload" || bucket_le)[0..8]
 //! ```
 //!
-//! Only holders of the workspace epoch key can compute the sequence, so an observer
-//! sees a random UUID that is unrelated between workspaces and changes every bucket.
-//! Peers scan the current and the previous bucket to tolerate clock skew.
+//! Without the epoch key the sequence looks random, and two workspaces look
+//! unrelated to each other. Peers scan the current bucket and the one before it,
+//! because phone clocks drift and a few minutes of skew should not cost you the
+//! connection.
 //!
-//! The 8-byte payload is a cheap *state hint*: peers can tell whether there is any
-//! point connecting before paying for a connection. It is a keyed digest of the
-//! sender's version-vector summary, so it leaks nothing to non-members.
+//! The 8 byte payload is a keyed digest of the sender's change count. Cheap to
+//! advertise, and enough to decide whether connecting is worth the battery.
 //!
-//! # Honest limits
-//!
-//! This hides the *application layer*. It does not defeat link-layer tracking: the
-//! Bluetooth device address may stay stable depending on the Android stack and chip.
-//! Any claim of anonymity would be false; the claim is "no stable application-layer
-//! identifier".
+//! What this does not do: defeat link layer tracking. The Bluetooth device address
+//! can stay stable depending on the Android stack and the chip. Claiming anonymity
+//! would be a lie. The claim is narrower: no stable application layer identifier.
 
 use std::collections::BTreeMap;
 
@@ -61,8 +55,12 @@ pub struct DiscoveryTag {
 }
 
 impl DiscoveryTag {
-    pub fn uuid_hex(&self) -> String { hex(&self.uuid) }
-    pub fn payload_hex(&self) -> String { hex(&self.payload) }
+    pub fn uuid_hex(&self) -> String {
+        hex(&self.uuid)
+    }
+    pub fn payload_hex(&self) -> String {
+        hex(&self.payload)
+    }
 
     /// Parse the hex forms the UI and platform channel exchange.
     pub fn from_hex(uuid_hex: &str, payload_hex: &str, bucket: u64) -> Option<Self> {
@@ -75,7 +73,11 @@ impl DiscoveryTag {
         let mut payload = [0u8; PAYLOAD_LEN];
         uuid.copy_from_slice(&u);
         payload.copy_from_slice(&p);
-        Some(Self { bucket, uuid, payload })
+        Some(Self {
+            bucket,
+            uuid,
+            payload,
+        })
     }
 }
 
@@ -85,7 +87,9 @@ pub fn discovery_key(epoch_key: &WorkspaceKey) -> [u8; 32] {
 }
 
 /// The time bucket for a unix timestamp.
-pub fn bucket_at(unix_seconds: u64) -> u64 { unix_seconds / BUCKET_SECONDS }
+pub fn bucket_at(unix_seconds: u64) -> u64 {
+    unix_seconds / BUCKET_SECONDS
+}
 
 fn derive(discovery_key: &[u8; 32], label: &[u8], bucket: u64) -> blake3::Hash {
     let mut input = Vec::with_capacity(label.len() + 8);
@@ -120,7 +124,11 @@ pub fn discovery_tag(
         hasher.update(hint);
         payload.copy_from_slice(&hasher.finalize().as_bytes()[..PAYLOAD_LEN]);
     }
-    DiscoveryTag { bucket, uuid, payload }
+    DiscoveryTag {
+        bucket,
+        uuid,
+        payload,
+    }
 }
 
 /// Does an observed advertisement match `epoch_key` within the accepted window?
@@ -169,7 +177,10 @@ pub struct PeerRegistry {
 
 impl PeerRegistry {
     pub fn new(max_peers: usize) -> Self {
-        Self { peers: BTreeMap::new(), max_peers: max_peers.max(1) }
+        Self {
+            peers: BTreeMap::new(),
+            max_peers: max_peers.max(1),
+        }
     }
 
     /// Record a sighting. Returns true if this is a new peer.
@@ -194,8 +205,12 @@ impl PeerRegistry {
         self.peers.get(address)
     }
 
-    pub fn len(&self) -> usize { self.peers.len() }
-    pub fn is_empty(&self) -> bool { self.peers.is_empty() }
+    pub fn len(&self) -> usize {
+        self.peers.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.peers.is_empty()
+    }
 
     /// Peers seen within `ttl_seconds` of `now`, most recently seen first.
     pub fn recent(&self, now: u64, ttl_seconds: u64) -> Vec<&DiscoveredPeer> {
@@ -211,7 +226,8 @@ impl PeerRegistry {
     /// Drop peers not seen for `ttl_seconds`.
     pub fn prune(&mut self, now: u64, ttl_seconds: u64) -> usize {
         let before = self.peers.len();
-        self.peers.retain(|_, p| now.saturating_sub(p.last_seen) <= ttl_seconds);
+        self.peers
+            .retain(|_, p| now.saturating_sub(p.last_seen) <= ttl_seconds);
         before - self.peers.len()
     }
 }
@@ -220,7 +236,9 @@ impl PeerRegistry {
 mod tests {
     use super::*;
 
-    fn key() -> WorkspaceKey { WorkspaceKey::generate() }
+    fn key() -> WorkspaceKey {
+        WorkspaceKey::generate()
+    }
 
     #[test]
     fn tag_is_stable_within_a_bucket() {
@@ -260,11 +278,17 @@ mod tests {
         let k = key();
         let now = 1_700_000_000u64;
         let current = discovery_tag(&k, now, None);
-        assert_eq!(match_advertisement(&k, &current.uuid, now), Some(current.bucket));
+        assert_eq!(
+            match_advertisement(&k, &current.uuid, now),
+            Some(current.bucket)
+        );
 
         // One bucket stale still matches (clock skew tolerance).
         let stale = discovery_tag(&k, now - BUCKET_SECONDS, None);
-        assert_eq!(match_advertisement(&k, &stale.uuid, now), Some(stale.bucket));
+        assert_eq!(
+            match_advertisement(&k, &stale.uuid, now),
+            Some(stale.bucket)
+        );
 
         // Too old is rejected.
         let ancient = discovery_tag(&k, now - BUCKET_SECONDS * (ACCEPT_BUCKETS_BACK + 2), None);
@@ -308,12 +332,23 @@ mod tests {
     fn registry_dedupes_and_orders_by_recency() {
         let mut r = PeerRegistry::new(8);
         assert!(r.observe(DiscoveredPeer {
-            address: "aa".into(), bucket: 1, rssi: Some(-60), last_seen: 100,
+            address: "aa".into(),
+            bucket: 1,
+            rssi: Some(-60),
+            last_seen: 100,
         }));
         assert!(!r.observe(DiscoveredPeer {
-            address: "aa".into(), bucket: 2, rssi: Some(-55), last_seen: 200,
+            address: "aa".into(),
+            bucket: 2,
+            rssi: Some(-55),
+            last_seen: 200,
         }));
-        r.observe(DiscoveredPeer { address: "bb".into(), bucket: 2, rssi: None, last_seen: 150 });
+        r.observe(DiscoveredPeer {
+            address: "bb".into(),
+            bucket: 2,
+            rssi: None,
+            last_seen: 150,
+        });
         assert_eq!(r.len(), 2);
         let recent = r.recent(200, 1000);
         assert_eq!(recent[0].address, "aa", "most recently seen first");
@@ -323,9 +358,24 @@ mod tests {
     #[test]
     fn registry_prunes_stale_and_caps_size() {
         let mut r = PeerRegistry::new(2);
-        r.observe(DiscoveredPeer { address: "a".into(), bucket: 0, rssi: None, last_seen: 10 });
-        r.observe(DiscoveredPeer { address: "b".into(), bucket: 0, rssi: None, last_seen: 20 });
-        r.observe(DiscoveredPeer { address: "c".into(), bucket: 0, rssi: None, last_seen: 30 });
+        r.observe(DiscoveredPeer {
+            address: "a".into(),
+            bucket: 0,
+            rssi: None,
+            last_seen: 10,
+        });
+        r.observe(DiscoveredPeer {
+            address: "b".into(),
+            bucket: 0,
+            rssi: None,
+            last_seen: 20,
+        });
+        r.observe(DiscoveredPeer {
+            address: "c".into(),
+            bucket: 0,
+            rssi: None,
+            last_seen: 30,
+        });
         assert_eq!(r.len(), 2, "capacity enforced");
         assert!(r.get("a").is_none(), "oldest evicted");
 

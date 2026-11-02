@@ -35,17 +35,25 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Lock a mutex, recovering from poisoning instead of panicking. A panic in one
 /// request handler must not take the whole mailbox down.
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// A workspace id is exactly 32 lowercase hex characters.
 pub fn is_valid_wsid(value: &str) -> bool {
-    value.len() == 32 && value.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    value.len() == 32
+        && value
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 /// A blob id is exactly 32 lowercase hex characters.
 pub fn is_valid_blob_id(value: &str) -> bool {
-    value.len() == 32 && value.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    value.len() == 32
+        && value
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 /// Blob id = first 32 hex chars (16 bytes) of blake3(body).
@@ -173,7 +181,9 @@ impl Workspace {
             workspace.next_seq = workspace.next_seq.max(seq);
             // Defend against duplicate ids (only possible via manual tampering).
             // The lowest seq wins; extra files are left on disk untouched.
-            if let std::collections::hash_map::Entry::Vacant(slot) = workspace.by_id.entry(id.clone()) {
+            if let std::collections::hash_map::Entry::Vacant(slot) =
+                workspace.by_id.entry(id.clone())
+            {
                 slot.insert(seq);
                 workspace.entries.insert(seq, BlobEntry { id, path });
             }
@@ -382,7 +392,10 @@ impl Store {
     /// The sequence counter is intentionally not rewound: seq must stay monotonic.
     pub fn delete(&self, wsid: &str, id: &str) -> io::Result<Option<u64>> {
         if !is_valid_blob_id(id) {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid blob id"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid blob id",
+            ));
         }
         let Some(workspace_handle) = self.get_workspace(wsid) else {
             return Ok(None);
@@ -421,10 +434,7 @@ impl Store {
     pub fn total_blobs(&self) -> usize {
         let handles: Vec<Arc<Mutex<Workspace>>> =
             lock(&self.workspaces).values().cloned().collect();
-        handles
-            .iter()
-            .map(|handle| lock(handle).count())
-            .sum()
+        handles.iter().map(|handle| lock(handle).count()).sum()
     }
 
     /// Evict blobs whose mtime is at least `max_age` old. Returns how many were removed.
@@ -489,7 +499,10 @@ mod tests {
         assert_eq!(name, "000000000042-0123456789abcdef0123456789abcdef.blob");
         assert_eq!(parse_blob_file_name(&name), Some((42, id.to_string())));
         assert_eq!(parse_blob_file_name("000000000042-xyz.blob"), None);
-        assert_eq!(parse_blob_file_name("000000000000-0123456789abcdef0123456789abcdef.blob"), None);
+        assert_eq!(
+            parse_blob_file_name("000000000000-0123456789abcdef0123456789abcdef.blob"),
+            None
+        );
     }
 
     #[test]

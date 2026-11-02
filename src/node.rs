@@ -1,6 +1,5 @@
 //! A running peer: identity + one workspace + documents + change log.
 //!
-//! # The lifecycle
 //!
 //! ```text
 //! create_workspace -> invite(peer_pubkey) -> [QR/token] -> join_from_invite
@@ -33,7 +32,10 @@ pub enum NodeError {
     Doc(DocError),
     EmptyInvite,
     BadInvite,
-    WorkspaceMismatch { mine: WorkspaceId, theirs: WorkspaceId },
+    WorkspaceMismatch {
+        mine: WorkspaceId,
+        theirs: WorkspaceId,
+    },
 }
 
 impl std::fmt::Display for NodeError {
@@ -48,21 +50,39 @@ impl std::fmt::Display for NodeError {
             NodeError::EmptyInvite => write!(f, "invite contains no membership entries"),
             NodeError::BadInvite => write!(f, "invite is malformed"),
             NodeError::WorkspaceMismatch { mine, theirs } => write!(
-                f, "workspace mismatch: this node is in {}, peer is in {}",
-                &mine.to_hex()[..8], &theirs.to_hex()[..8]
+                f,
+                "workspace mismatch: this node is in {}, peer is in {}",
+                &mine.to_hex()[..8],
+                &theirs.to_hex()[..8]
             ),
         }
     }
 }
 impl std::error::Error for NodeError {}
 
-impl From<CryptoError> for NodeError { fn from(e: CryptoError) -> Self { NodeError::Crypto(e) } }
-impl From<ChangeError> for NodeError { fn from(e: ChangeError) -> Self { NodeError::Change(e) } }
-impl From<MembershipError> for NodeError { fn from(e: MembershipError) -> Self { NodeError::Membership(e) } }
-impl From<DocError> for NodeError { fn from(e: DocError) -> Self { NodeError::Doc(e) } }
+impl From<CryptoError> for NodeError {
+    fn from(e: CryptoError) -> Self {
+        NodeError::Crypto(e)
+    }
+}
+impl From<ChangeError> for NodeError {
+    fn from(e: ChangeError) -> Self {
+        NodeError::Change(e)
+    }
+}
+impl From<MembershipError> for NodeError {
+    fn from(e: MembershipError) -> Self {
+        NodeError::Membership(e)
+    }
+}
+impl From<DocError> for NodeError {
+    fn from(e: DocError) -> Self {
+        NodeError::Doc(e)
+    }
+}
 
 /// The token a new member needs. It is the entire membership log, which contains
-/// a key grant sealed to that member's X25519 key — so possession of the token
+/// a key grant sealed to that member's X25519 key, so possession of the token
 /// alone is useful only to the member it was minted for.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Invite {
@@ -117,7 +137,7 @@ pub struct Node {
 }
 
 impl Node {
-    // ------------------------------------------------------------- construction
+    // construction
 
     /// Create a brand-new workspace. The caller is the founding member.
     pub fn create_workspace(identity: Identity, name: &str) -> Result<Self> {
@@ -130,7 +150,12 @@ impl Node {
         // Give ourselves a grant too, so a reinstall can recover the key from the log.
         let self_grant = seal_key_grant(&identity.public(), &key)?;
         let own = EntryBuilder::new(&identity).regrant(
-            ws, Epoch::GENESIS, identity.public(), self_grant, vec![genesis_id], 0,
+            ws,
+            Epoch::GENESIS,
+            identity.public(),
+            self_grant,
+            vec![genesis_id],
+            0,
         );
         log.insert(ws, own)?;
 
@@ -160,7 +185,12 @@ impl Node {
         let parents = self.tip_ids();
         self.seq += 1;
         let entry = EntryBuilder::new(&self.identity).add(
-            self.workspace_id, epoch, *joiner, grant, parents, self.seq,
+            self.workspace_id,
+            epoch,
+            *joiner,
+            grant,
+            parents,
+            self.seq,
         );
         self.log.insert(self.workspace_id, entry)?;
         Ok(Invite {
@@ -170,9 +200,11 @@ impl Node {
     }
 
     /// Join a workspace from an invite. Verifies every entry and recovers our key
-    /// from the grant sealed to us — no out-of-band key transfer needed.
+    /// from the grant sealed to us, no out-of-band key transfer needed.
     pub fn join_from_invite(identity: Identity, invite: &Invite) -> Result<Self> {
-        if invite.entries.is_empty() { return Err(NodeError::EmptyInvite); }
+        if invite.entries.is_empty() {
+            return Err(NodeError::EmptyInvite);
+        }
         let ws = invite.workspace_id;
         let mut log = MembershipLog::new();
         // Insert in dependency order: retry until no progress (parents before children).
@@ -188,8 +220,12 @@ impl Node {
                 }
             }
             let after = log.len();
-            if still.is_empty() { break; }
-            if after == before { return Err(NodeError::BadInvite); }
+            if still.is_empty() {
+                break;
+            }
+            if after == before {
+                return Err(NodeError::BadInvite);
+            }
             pending = still;
         }
         let head = log.head_epoch();
@@ -203,7 +239,9 @@ impl Node {
                 _ => continue,
             };
             if m == identity.fingerprint() {
-                if keys.contains_key(&e.epoch.0) { continue; }
+                if keys.contains_key(&e.epoch.0) {
+                    continue;
+                }
                 if let Some(k) = log.key_for(&identity, e.epoch) {
                     keys.insert(e.epoch.0, k);
                 }
@@ -224,22 +262,46 @@ impl Node {
         })
     }
 
-    // ------------------------------------------------------------------ accessors
+    // accessors
 
-    pub fn peer_id(&self) -> PeerId { self.identity.fingerprint() }
-    pub fn epoch(&self) -> Epoch { self.log.head_epoch() }
-    pub fn workspace_name(&self) -> String { self.log.name().unwrap_or_default() }
-    pub fn change_count(&self) -> usize { self.changes.len() }
-    pub fn applied_count(&self) -> usize { self.applied.len() }
-    pub fn pending_count(&self) -> usize { self.changes.len() - self.applied.len() }
+    pub fn peer_id(&self) -> PeerId {
+        self.identity.fingerprint()
+    }
+    pub fn epoch(&self) -> Epoch {
+        self.log.head_epoch()
+    }
+    pub fn workspace_name(&self) -> String {
+        self.log.name().unwrap_or_default()
+    }
+    pub fn change_count(&self) -> usize {
+        self.changes.len()
+    }
+    pub fn applied_count(&self) -> usize {
+        self.applied.len()
+    }
+    pub fn pending_count(&self) -> usize {
+        self.changes.len() - self.applied.len()
+    }
     /// Changes held but not applied, with reasons. Must be empty after convergence.
-    pub fn rejected(&self) -> &BTreeMap<ChangeId, String> { &self.rejected }
-    pub fn rejected_count(&self) -> usize { self.rejected.len() }
-    pub fn doc_ids(&self) -> Vec<DocId> { self.docs.keys().copied().collect() }
-    pub fn change_ids(&self) -> Vec<ChangeId> { self.changes.keys().copied().collect() }
-    pub fn members(&self) -> BTreeSet<PeerId> { self.log.members() }
+    pub fn rejected(&self) -> &BTreeMap<ChangeId, String> {
+        &self.rejected
+    }
+    pub fn rejected_count(&self) -> usize {
+        self.rejected.len()
+    }
+    pub fn doc_ids(&self) -> Vec<DocId> {
+        self.docs.keys().copied().collect()
+    }
+    pub fn change_ids(&self) -> Vec<ChangeId> {
+        self.changes.keys().copied().collect()
+    }
+    pub fn members(&self) -> BTreeSet<PeerId> {
+        self.log.members()
+    }
 
-    pub fn doc(&self, id: &DocId) -> Option<&Document> { self.docs.get(id) }
+    pub fn doc(&self, id: &DocId) -> Option<&Document> {
+        self.docs.get(id)
+    }
 
     /// Export the epoch key to a member. Needed when minting invites and when
     /// (re)granting a key after a rotation. Never call this for a non-member.
@@ -256,13 +318,19 @@ impl Node {
         let all: Vec<ChangeId> = self.log.ids();
         let mut parents: BTreeSet<ChangeId> = BTreeSet::new();
         for e in self.log.entries() {
-            for p in &e.parents { parents.insert(*p); }
+            for p in &e.parents {
+                parents.insert(*p);
+            }
         }
         let tips: Vec<ChangeId> = all.into_iter().filter(|c| !parents.contains(c)).collect();
-        if tips.is_empty() { vec![] } else { tips }
+        if tips.is_empty() {
+            vec![]
+        } else {
+            tips
+        }
     }
 
-    // ----------------------------------------------------------------- documents
+    // documents
 
     /// Create a document and emit a change that carries its existence and metadata.
     pub fn create_doc(&mut self, ty: DocType, title: &str) -> Result<DocId> {
@@ -281,7 +349,13 @@ impl Node {
         let key = self.key(epoch)?.clone();
         self.seq += 1;
         let env = ChangeEnvelope::create(
-            &self.identity, self.workspace_id, did, epoch, self.seq, &key, update,
+            &self.identity,
+            self.workspace_id,
+            did,
+            epoch,
+            self.seq,
+            &key,
+            update,
         )?;
         let id = env.id();
         self.changes.insert(id, env);
@@ -318,12 +392,24 @@ impl Node {
 
     pub fn add_checklist_item(&mut self, did: DocId, text: &str) -> Result<ChangeId> {
         let mut id = String::new();
-        self.edit(did, |d| { id = d.add_item(text); true })?;
+        self.edit(did, |d| {
+            id = d.add_item(text);
+            true
+        })?;
         let _ = id;
-        Ok(*self.changes.keys().next_back().unwrap_or(&ChangeId([0u8;16])))
+        Ok(*self
+            .changes
+            .keys()
+            .next_back()
+            .unwrap_or(&ChangeId([0u8; 16])))
     }
 
-    pub fn toggle_checklist_item(&mut self, did: DocId, item_id: &str, done: bool) -> Result<ChangeId> {
+    pub fn toggle_checklist_item(
+        &mut self,
+        did: DocId,
+        item_id: &str,
+        done: bool,
+    ) -> Result<ChangeId> {
         let me = self.identity.public();
         let iid = item_id.to_string();
         self.edit(did, move |d| d.set_item_done(&iid, done, &me))
@@ -331,29 +417,51 @@ impl Node {
 
     pub fn add_checklist_item_id(&mut self, did: DocId, text: &str) -> Result<(ChangeId, String)> {
         let mut new_id = String::new();
-        let cid = self.edit(did, |d| { new_id = d.add_item(text); true })?;
+        let cid = self.edit(did, |d| {
+            new_id = d.add_item(text);
+            true
+        })?;
         Ok((cid, new_id))
     }
 
-    pub fn set_supply_field(&mut self, did: DocId, field: &str, value: &str, unit: &str) -> Result<ChangeId> {
+    pub fn set_supply_field(
+        &mut self,
+        did: DocId,
+        field: &str,
+        value: &str,
+        unit: &str,
+    ) -> Result<ChangeId> {
         let f = field.to_string();
         let v = value.to_string();
         let u = unit.to_string();
         self.edit(did, move |d| d.set_field(&f, &v, &u))
     }
 
-    pub fn set_location(&mut self, did: DocId, lat: f64, lon: f64, label: &str, kind: &str) -> Result<ChangeId> {
+    pub fn set_location(
+        &mut self,
+        did: DocId,
+        lat: f64,
+        lon: f64,
+        label: &str,
+        kind: &str,
+    ) -> Result<ChangeId> {
         let l = label.to_string();
         let k = kind.to_string();
-        self.edit(did, move |d| { d.set_location(lat, lon, &l, &k); true })
+        self.edit(did, move |d| {
+            d.set_location(lat, lon, &l, &k);
+            true
+        })
     }
 
     pub fn set_note(&mut self, did: DocId, text: &str) -> Result<ChangeId> {
         let t = text.to_string();
-        self.edit(did, move |d| { d.set_text(&t); true })
+        self.edit(did, move |d| {
+            d.set_text(&t);
+            true
+        })
     }
 
-    // -------------------------------------------------------------------- sync
+    // sync
 
     /// Apply a change from the network. Returns `Ok(true)` if it was new.
     ///
@@ -362,20 +470,28 @@ impl Node {
     /// claimed epoch (checked inside `open`), CRDT accepts the update.
     pub fn ingest(&mut self, env: ChangeEnvelope) -> Result<bool> {
         let id = env.id();
-        if self.changes.contains_key(&id) { return Ok(false); }
+        if self.changes.contains_key(&id) {
+            return Ok(false);
+        }
         self.changes.insert(id, env.clone());
         self.try_apply(&id)
     }
 
     fn try_apply(&mut self, id: &ChangeId) -> Result<bool> {
-        if self.applied.contains(id) { return Ok(false); }
-        let env = match self.changes.get(id) { Some(e) => e.clone(), None => return Ok(false) };
+        if self.applied.contains(id) {
+            return Ok(false);
+        }
+        let env = match self.changes.get(id) {
+            Some(e) => e.clone(),
+            None => return Ok(false),
+        };
         let key = match self.keys.get(&env.epoch.0) {
             Some(k) => k.clone(),
             // We may not hold this epoch's key yet (rotation raced ahead of us).
             // Keep the envelope: it will be applied once the key arrives.
             None => {
-                self.rejected.insert(*id, format!("no key for epoch {}", env.epoch));
+                self.rejected
+                    .insert(*id, format!("no key for epoch {}", env.epoch));
                 return Ok(false);
             }
         };
@@ -468,15 +584,25 @@ impl Node {
         // 2. Exchange change envelopes: only what the peer lacks.
         let my_ids: BTreeSet<ChangeId> = self.changes.keys().copied().collect();
         let their_ids: BTreeSet<ChangeId> = other.changes.keys().copied().collect();
-        let to_other: Vec<ChangeEnvelope> = self.changes.iter()
+        let to_other: Vec<ChangeEnvelope> = self
+            .changes
+            .iter()
             .filter(|(id, _)| !their_ids.contains(id))
-            .map(|(_, e)| e.clone()).collect();
-        let to_me: Vec<ChangeEnvelope> = other.changes.iter()
+            .map(|(_, e)| e.clone())
+            .collect();
+        let to_me: Vec<ChangeEnvelope> = other
+            .changes
+            .iter()
             .filter(|(id, _)| !my_ids.contains(id))
-            .map(|(_, e)| e.clone()).collect();
+            .map(|(_, e)| e.clone())
+            .collect();
         let sent = to_other.len();
-        for env in to_other { let _ = other.ingest(env); }
-        for env in to_me { let _ = self.ingest(env); }
+        for env in to_other {
+            let _ = other.ingest(env);
+        }
+        for env in to_me {
+            let _ = self.ingest(env);
+        }
         let _ = got_mem;
         // 3. Reconcile both sides to a fixpoint. A change can arrive before the
         //    membership entry or epoch key that authorises it, on either side, so
@@ -485,15 +611,21 @@ impl Node {
         for _ in 0..8 {
             let before = (self.applied_count(), other.applied_count());
             let ids: Vec<ChangeId> = self.changes.keys().copied().collect();
-            for id in ids { let _ = self.try_apply(&id); }
+            for id in ids {
+                let _ = self.try_apply(&id);
+            }
             let ids: Vec<ChangeId> = other.changes.keys().copied().collect();
-            for id in ids { let _ = other.try_apply(&id); }
-            if (self.applied_count(), other.applied_count()) == before { break; }
+            for id in ids {
+                let _ = other.try_apply(&id);
+            }
+            if (self.applied_count(), other.applied_count()) == before {
+                break;
+            }
         }
         Ok((other.change_count(), sent))
     }
 
-    // --------------------------------------------------------------- bulk export
+    // bulk export
 
     /// Envelopes the peer does not already have, capped at `limit`.
     pub fn envelopes_not_in(
@@ -523,14 +655,16 @@ impl Node {
             .collect()
     }
 
-    pub fn has_change(&self, id: &ChangeId) -> bool { self.changes.contains_key(id) }
+    pub fn has_change(&self, id: &ChangeId) -> bool {
+        self.changes.contains_key(id)
+    }
 
     /// Total bytes of ciphertext we are holding (for quota reporting).
     pub fn stored_bytes(&self) -> usize {
         self.changes.values().map(|e| e.approx_len()).sum()
     }
 
-    // ------------------------------------------------------------------ persistence
+    // persistence
 
     /// Everything needed to reconstruct this node, minus the identity secrets
     /// (which the store encrypts separately).
@@ -546,7 +680,10 @@ impl Node {
     /// Rebuild a node from persisted state. Changes are re-ingested, so anything
     /// that was pending stays pending rather than being silently trusted.
     pub fn import_state(identity: Identity, state: PersistState) -> Result<Self> {
-        let invite = Invite { workspace_id: state.workspace_id, entries: state.entries };
+        let invite = Invite {
+            workspace_id: state.workspace_id,
+            entries: state.entries,
+        };
         let mut node = Node::join_from_invite(identity, &invite)?;
         node.seq = state.seq;
         for bytes in state.changes {
@@ -562,11 +699,15 @@ impl Node {
     pub fn retry_pending(&mut self) -> usize {
         let ids: Vec<ChangeId> = self.changes.keys().copied().collect();
         let mut n = 0;
-        for id in ids { if matches!(self.try_apply(&id), Ok(true)) { n += 1; } }
+        for id in ids {
+            if matches!(self.try_apply(&id), Ok(true)) {
+                n += 1;
+            }
+        }
         n
     }
 
-    // ------------------------------------------------------------------ rendering
+    // rendering
 
     /// Deterministic whole-workspace rendering. Two converged nodes produce
     /// byte-identical output, which is what the convergence tests assert on.
@@ -574,8 +715,13 @@ impl Node {
         let mut s = String::new();
         s.push_str(&format!(
             "workspace {} \"{}\" epoch={} members={} docs={} changes={} pending={}\n",
-            self.workspace_id, self.workspace_name(), self.epoch(),
-            self.members().len(), self.docs.len(), self.changes.len(), self.pending_count()
+            self.workspace_id,
+            self.workspace_name(),
+            self.epoch(),
+            self.members().len(),
+            self.docs.len(),
+            self.changes.len(),
+            self.pending_count()
         ));
         for (did, doc) in &self.docs {
             s.push_str(&format!("  -- doc {} --\n", &did.to_hex()[..8]));
@@ -627,7 +773,10 @@ mod tests {
     #[test]
     fn invite_token_roundtrip() {
         let (alice, _bob) = two_nodes();
-        let invite = Invite { workspace_id: alice.workspace_id, entries: alice.log.entries().cloned().collect() };
+        let invite = Invite {
+            workspace_id: alice.workspace_id,
+            entries: alice.log.entries().cloned().collect(),
+        };
         let tok = invite.to_token();
         let back = Invite::from_token(&tok).unwrap();
         assert_eq!(back.workspace_id, alice.workspace_id);
@@ -694,8 +843,8 @@ mod tests {
         let did = a.create_doc(DocType::GeoPoint, "Water point").unwrap();
         a.set_location(did, 27.7, 85.3, "spring", "water").unwrap();
 
-        a.sync_with(&mut b).unwrap();   // A -> B
-        b.sync_with(&mut c).unwrap();   // B -> C  (C never met A)
+        a.sync_with(&mut b).unwrap(); // A -> B
+        b.sync_with(&mut c).unwrap(); // B -> C  (C never met A)
         assert!(c.doc(&did).is_some());
         assert!((c.doc(&did).unwrap().location().lat - 27.7).abs() < 1e-9);
     }
@@ -710,10 +859,15 @@ mod tests {
         // Eve knows the workspace id and even the key, but is not in the log.
         let eve = Identity::generate();
         let eve_env = ChangeEnvelope::create(
-            &eve, alice.workspace_id, did, Epoch::GENESIS, 99,
+            &eve,
+            alice.workspace_id,
+            did,
+            Epoch::GENESIS,
+            99,
             &alice.key(Epoch::GENESIS).unwrap().clone(),
             b"forged",
-        ).unwrap();
+        )
+        .unwrap();
         let before = bob.change_count();
         bob.ingest(eve_env).unwrap();
         // Envelope is retained but never applied.

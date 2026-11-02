@@ -8,7 +8,9 @@ use std::time::Duration;
 
 use meshdoc_ffi::*;
 
-fn cs(s: &str) -> CString { CString::new(s).unwrap() }
+fn cs(s: &str) -> CString {
+    CString::new(s).unwrap()
+}
 
 /// Take ownership of a returned string, or panic with the last error.
 fn take(ptr: *mut std::ffi::c_char) -> serde_json::Value {
@@ -33,7 +35,10 @@ fn tmpdir(tag: &str) -> String {
     let p = std::env::temp_dir().join(format!(
         "meshdoc-ffi-{tag}-{}-{}",
         std::process::id(),
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     std::fs::create_dir_all(&p).unwrap();
     p.to_string_lossy().to_string()
@@ -55,28 +60,46 @@ fn full_offline_sync_through_the_c_abi() {
     let b_public = idb["public"].as_str().unwrap().to_string();
 
     // 2. A creates a workspace and invites B.
-    let ws = take(meshdoc_workspace_create(sa.as_ptr(), sp.as_ptr(), cs("Field Ops").as_ptr()));
+    let ws = take(meshdoc_workspace_create(
+        sa.as_ptr(),
+        sp.as_ptr(),
+        cs("Field Ops").as_ptr(),
+    ));
     let wsid = ws["workspace_id"].as_str().unwrap().to_string();
     assert_eq!(ws["name"], "Field Ops");
 
     let tok = take(meshdoc_workspace_invite(
-        sa.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs(&b_public).as_ptr(),
+        sa.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs(&b_public).as_ptr(),
     ));
     let token = tok["token"].as_str().unwrap().to_string();
     assert!(tok["bytes"].as_u64().unwrap() > 1000);
 
-    let joined = take(meshdoc_workspace_join(sb.as_ptr(), sp.as_ptr(), cs(&token).as_ptr()));
+    let joined = take(meshdoc_workspace_join(
+        sb.as_ptr(),
+        sp.as_ptr(),
+        cs(&token).as_ptr(),
+    ));
     assert_eq!(joined["workspace_id"].as_str().unwrap(), wsid);
     assert_eq!(joined["members"].as_u64().unwrap(), 2);
 
     // 3. A records a checklist.
     let doc = take(meshdoc_doc_create(
-        sa.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs("checklist").as_ptr(), cs("Trapped persons").as_ptr(),
+        sa.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs("checklist").as_ptr(),
+        cs("Trapped persons").as_ptr(),
     ));
     let doc_id = doc["doc_id"].as_str().unwrap().to_string();
     let item = take(meshdoc_checklist_add(
-        sa.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs(&doc_id).as_ptr(),
-        cs("Ward 3 — two adults, one child").as_ptr(),
+        sa.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs(&doc_id).as_ptr(),
+        cs("Ward 3, two adults, one child").as_ptr(),
     ));
     let item_id = item["item_id"].as_str().unwrap().to_string();
     assert_eq!(item_id.len(), 12);
@@ -93,28 +116,51 @@ fn full_offline_sync_through_the_c_abi() {
         let (sa, sp) = (cs(&a_path), cs(PASS));
         let ws = cs("");
         tx.send(()).unwrap();
-        take(meshdoc_sync_serve(sa.as_ptr(), sp.as_ptr(), ws.as_ptr(), port, 1))
+        take(meshdoc_sync_serve(
+            sa.as_ptr(),
+            sp.as_ptr(),
+            ws.as_ptr(),
+            port,
+            1,
+        ))
     });
     rx.recv_timeout(Duration::from_secs(5)).unwrap();
     thread::sleep(Duration::from_millis(300));
 
     let pulled = take(meshdoc_sync_pull(
-        cs(&b_path).as_ptr(), cs(PASS).as_ptr(), cs(&wsid).as_ptr(), cs("127.0.0.1").as_ptr(), port,
+        cs(&b_path).as_ptr(),
+        cs(PASS).as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs("127.0.0.1").as_ptr(),
+        port,
     ));
-    assert!(pulled["received"].as_u64().unwrap() > 0, "expected changes: {pulled}");
+    assert!(
+        pulled["received"].as_u64().unwrap() > 0,
+        "expected changes: {pulled}"
+    );
     let served = server.join().unwrap();
     assert!(served["served"].as_u64().unwrap() >= 1);
 
     // 6. B now sees the document and the item.
-    let bdoc = take(meshdoc_document(sb.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs(&doc_id).as_ptr()));
+    let bdoc = take(meshdoc_document(
+        sb.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs(&doc_id).as_ptr(),
+    ));
     let items = bdoc["items"].as_array().unwrap();
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0]["text"], "Ward 3 — two adults, one child");
+    assert_eq!(items[0]["text"], "Ward 3, two adults, one child");
     assert_eq!(items[0]["done"], false);
 
     // 7. B ticks it while apart; A pulls and converges.
     take(meshdoc_checklist_toggle(
-        sb.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs(&doc_id).as_ptr(), cs(&item_id).as_ptr(), 1,
+        sb.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs(&doc_id).as_ptr(),
+        cs(&item_id).as_ptr(),
+        1,
     ));
     let port2 = port + 1;
     let (b2, a2) = (b.clone(), a.clone());
@@ -123,24 +169,54 @@ fn full_offline_sync_through_the_c_abi() {
         let (sb, sp) = (cs(&b2), cs(PASS));
         let ws = cs("");
         tx2.send(()).unwrap();
-        take(meshdoc_sync_serve(sb.as_ptr(), sp.as_ptr(), ws.as_ptr(), port2, 1))
+        take(meshdoc_sync_serve(
+            sb.as_ptr(),
+            sp.as_ptr(),
+            ws.as_ptr(),
+            port2,
+            1,
+        ))
     });
     rx2.recv_timeout(Duration::from_secs(5)).unwrap();
     thread::sleep(Duration::from_millis(300));
     take(meshdoc_sync_pull(
-        cs(&a2).as_ptr(), cs(PASS).as_ptr(), cs(&wsid).as_ptr(), cs("127.0.0.1").as_ptr(), port2,
+        cs(&a2).as_ptr(),
+        cs(PASS).as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs("127.0.0.1").as_ptr(),
+        port2,
     ));
     server2.join().unwrap();
 
     // 8. Both sides now agree.
-    let adoc = take(meshdoc_document(sa.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs(&doc_id).as_ptr()));
-    let bdoc2 = take(meshdoc_document(sb.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs(&doc_id).as_ptr()));
+    let adoc = take(meshdoc_document(
+        sa.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs(&doc_id).as_ptr(),
+    ));
+    let bdoc2 = take(meshdoc_document(
+        sb.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs(&doc_id).as_ptr(),
+    ));
     assert_eq!(adoc["items"], bdoc2["items"], "replicas must converge");
     assert_eq!(adoc["items"][0]["done"], true);
 
     // 9. Discovery tag rotates and is per-workspace.
-    let t1 = take(meshdoc_discovery_key(sa.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), 1_700_000_000));
-    let t2 = take(meshdoc_discovery_key(sa.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), 1_700_000_000 + 15 * 60));
+    let t1 = take(meshdoc_discovery_key(
+        sa.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        1_700_000_000,
+    ));
+    let t2 = take(meshdoc_discovery_key(
+        sa.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        1_700_000_000 + 15 * 60,
+    ));
     assert_eq!(t1["uuid"].as_str().unwrap().len(), 32);
     assert_ne!(t1["uuid"], t2["uuid"], "the discovery UUID must rotate");
 
@@ -169,17 +245,37 @@ fn invalid_inputs_are_rejected() {
     take(meshdoc_init(s.as_ptr(), sp.as_ptr()));
 
     // Malformed joiner key.
-    let ws = take(meshdoc_workspace_create(s.as_ptr(), sp.as_ptr(), cs("w").as_ptr()));
+    let ws = take(meshdoc_workspace_create(
+        s.as_ptr(),
+        sp.as_ptr(),
+        cs("w").as_ptr(),
+    ));
     let wsid = ws["workspace_id"].as_str().unwrap().to_string();
-    let p = meshdoc_workspace_invite(s.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs("not-hex").as_ptr());
+    let p = meshdoc_workspace_invite(
+        s.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs("not-hex").as_ptr(),
+    );
     assert!(p.is_null());
 
     // Malformed document type.
-    let p = meshdoc_doc_create(s.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs("bogus").as_ptr(), cs("t").as_ptr());
+    let p = meshdoc_doc_create(
+        s.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs("bogus").as_ptr(),
+        cs("t").as_ptr(),
+    );
     assert!(p.is_null());
 
     // Malformed document id.
-    let p = meshdoc_document(s.as_ptr(), sp.as_ptr(), cs(&wsid).as_ptr(), cs("zz").as_ptr());
+    let p = meshdoc_document(
+        s.as_ptr(),
+        sp.as_ptr(),
+        cs(&wsid).as_ptr(),
+        cs("zz").as_ptr(),
+    );
     assert!(p.is_null());
 
     let _ = std::fs::remove_dir_all(&dir);

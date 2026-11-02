@@ -1,13 +1,13 @@
 //! Integration tests for the MeshDoc relay client.
 //!
-//! Most tests drive [`RelayClient`] against a **fake relay** that lives in this
+//! Most tests drive [`RelayClient`] against a fake relay that lives in this
 //! file: a `std::net::TcpListener` on an ephemeral port that speaks canned
 //! HTTP/1.1 responses. That keeps the suite deterministic and needs no new
 //! dependency, no external process and no port assumptions.
 //!
-//! One further test exercises a **real** `meshdoc-relay` binary when one is
+//! One further test exercises a real `meshdoc-relay` binary when one is
 //! available (a release/debug build under `relay/target/`, or the path in
-//! `MESHDOC_RELAY_BIN`). It is skipped — not failed — when no binary is present,
+//! `MESHDOC_RELAY_BIN`). It is skipped, not failed, when no binary is present,
 //! so a fresh checkout stays green.
 
 use std::io::{BufRead, BufReader, ErrorKind, Write};
@@ -58,9 +58,7 @@ fn page(cursor: u64, more: bool, blobs: Vec<(u64, Vec<u8>)>) -> Value {
     json!({ "cursor": cursor, "more": more, "blobs": blobs })
 }
 
-// ---------------------------------------------------------------------------
 // Fake relay: a tiny HTTP/1.1 server with canned responses
-// ---------------------------------------------------------------------------
 
 /// A request as seen by the fake relay.
 #[derive(Clone, Debug)]
@@ -234,7 +232,10 @@ impl FakeRelay {
     }
 
     fn requests(&self) -> Vec<Request> {
-        self.requests.lock().expect("recorded requests lock").clone()
+        self.requests
+            .lock()
+            .expect("recorded requests lock")
+            .clone()
     }
 
     fn request_count(&self) -> usize {
@@ -334,7 +335,9 @@ fn write_response(stream: &mut TcpStream, response: &Response) -> std::io::Resul
     }
     match response.framing {
         Framing::ContentLength => {
-            let length = response.declared_length.unwrap_or(response.body.len() as u64);
+            let length = response
+                .declared_length
+                .unwrap_or(response.body.len() as u64);
             if response.lowercase_headers {
                 head.push_str(&format!("content-length: {length}\r\n"));
             } else {
@@ -466,9 +469,7 @@ impl Drop for SilentServer {
     }
 }
 
-// ---------------------------------------------------------------------------
 // health
-// ---------------------------------------------------------------------------
 
 #[test]
 fn health_parses_the_relay_response() {
@@ -523,9 +524,7 @@ fn non_utf8_error_body_is_lossy_instead_of_panicking() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // POST
-// ---------------------------------------------------------------------------
 
 #[test]
 fn post_blob_returns_seq_and_id_with_correct_framing() {
@@ -568,9 +567,7 @@ fn post_blob_returns_seq_and_id_with_correct_framing() {
 
 #[test]
 fn post_blob_surfaces_non_2xx_as_status_error() {
-    let server = FakeRelay::spawn(|_| {
-        Response::json(413, &json!({"error": "blob too large"}))
-    });
+    let server = FakeRelay::spawn(|_| Response::json(413, &json!({"error": "blob too large"})));
 
     let error = server
         .client()
@@ -588,9 +585,7 @@ fn post_blob_surfaces_non_2xx_as_status_error() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // fetch_since
-// ---------------------------------------------------------------------------
 
 #[test]
 fn fetch_since_returns_a_single_page_and_round_trips_bytes() {
@@ -625,7 +620,10 @@ fn fetch_since_returns_a_single_page_and_round_trips_bytes() {
     let requests = server.requests();
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].method, "GET");
-    assert_eq!(requests[0].target, format!("/v1/ws/{WSID_HEX}/blobs?since=0"));
+    assert_eq!(
+        requests[0].target,
+        format!("/v1/ws/{WSID_HEX}/blobs?since=0")
+    );
 }
 
 #[test]
@@ -736,19 +734,19 @@ fn fetch_since_rejects_invalid_base64() {
         .client()
         .fetch_since(ws(), 0)
         .expect_err("invalid base64 must fail");
-    assert!(matches!(error, RelayError::Base64), "unexpected error: {error:?}");
+    assert!(
+        matches!(error, RelayError::Base64),
+        "unexpected error: {error:?}"
+    );
 }
 
-// ---------------------------------------------------------------------------
 // head / delete
-// ---------------------------------------------------------------------------
 
 #[test]
 fn head_returns_the_highest_sequence_number() {
     for (head, count) in [(2u64, 1u64), (0, 0)] {
-        let server = FakeRelay::spawn(move |_| {
-            Response::json(200, &json!({"head": head, "count": count}))
-        });
+        let server =
+            FakeRelay::spawn(move |_| Response::json(200, &json!({"head": head, "count": count})));
         assert_eq!(server.client().head(ws()).expect("head"), head);
         let request = server.last_request();
         assert_eq!(request.method, "GET");
@@ -786,9 +784,7 @@ fn delete_blob_maps_200_to_true_and_404_to_false() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // base URL handling
-// ---------------------------------------------------------------------------
 
 #[test]
 fn malformed_base_urls_are_rejected() {
@@ -839,9 +835,7 @@ fn accepted_base_url_forms_all_reach_the_relay() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // transport robustness
-// ---------------------------------------------------------------------------
 
 #[test]
 fn connection_refused_is_an_io_error() {
@@ -946,20 +940,19 @@ fn ambiguous_framing_is_a_protocol_error() {
 
 #[test]
 fn truncated_response_body_is_a_protocol_error() {
-    let server = FakeRelay::spawn(|_| {
-        Response::bytes(200, b"{}".to_vec()).claim_length(100_000)
-    });
+    let server = FakeRelay::spawn(|_| Response::bytes(200, b"{}".to_vec()).claim_length(100_000));
 
-    let error = server.client().health().expect_err("must detect truncation");
+    let error = server
+        .client()
+        .health()
+        .expect_err("must detect truncation");
     assert!(
         matches!(error, RelayError::Protocol(_)),
         "unexpected error: {error:?}"
     );
 }
 
-// ---------------------------------------------------------------------------
 // auth token
-// ---------------------------------------------------------------------------
 
 #[test]
 fn bearer_token_is_sent_but_never_debug_printed() {
@@ -991,10 +984,10 @@ fn auth_token_with_control_characters_is_refused() {
         Response::json(200, &json!({"status": "ok", "version": "1", "blobs": 0}))
     });
 
-    let client = server
-        .client()
-        .with_auth_token("token\r\nX-Injected: yes");
-    let error = client.health().expect_err("header injection must be refused");
+    let client = server.client().with_auth_token("token\r\nX-Injected: yes");
+    let error = client
+        .health()
+        .expect_err("header injection must be refused");
     assert!(
         matches!(error, RelayError::BadUrl),
         "unexpected error: {error:?}"
@@ -1006,9 +999,7 @@ fn auth_token_with_control_characters_is_refused() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // push_changes
-// ---------------------------------------------------------------------------
 
 /// Handler for a relay that starts empty and assigns sequences 1, 2, 3, ...
 fn empty_relay_handler() -> impl Fn(Request) -> Response + Send + 'static {
@@ -1054,11 +1045,7 @@ fn push_changes_posts_everything_to_an_empty_relay() {
 #[test]
 fn push_changes_skips_blobs_the_relay_already_has() {
     let known = [b"alpha".to_vec(), b"gamma".to_vec()];
-    let listing = page(
-        2,
-        false,
-        vec![(1, known[0].clone()), (2, known[1].clone())],
-    );
+    let listing = page(2, false, vec![(1, known[0].clone()), (2, known[1].clone())]);
     let next_seq = Arc::new(Mutex::new(2u64));
     let server = FakeRelay::spawn(move |request: Request| {
         if request.method == "GET" && request.target.ends_with("/head") {
@@ -1074,11 +1061,7 @@ fn push_changes_skips_blobs_the_relay_already_has() {
         }
     });
 
-    let changes = vec![
-        b"alpha".to_vec(),
-        b"beta".to_vec(),
-        b"gamma".to_vec(),
-    ];
+    let changes = vec![b"alpha".to_vec(), b"beta".to_vec(), b"gamma".to_vec()];
     assert_eq!(
         server.client().push_changes(ws(), &changes).expect("push"),
         1,
@@ -1117,16 +1100,11 @@ fn push_changes_dedupes_identical_blobs_in_one_batch() {
 fn push_changes_with_no_changes_makes_no_requests() {
     let server = FakeRelay::spawn(|_| Response::bytes(500, b"should not be called".to_vec()));
 
-    assert_eq!(
-        server.client().push_changes(ws(), &[]).expect("push"),
-        0
-    );
+    assert_eq!(server.client().push_changes(ws(), &[]).expect("push"), 0);
     assert_eq!(server.request_count(), 0);
 }
 
-// ---------------------------------------------------------------------------
 // against the real relay, when a prebuilt binary is available
-// ---------------------------------------------------------------------------
 
 /// Locate a prebuilt `meshdoc-relay` binary, if one exists.
 fn relay_binary() -> Option<PathBuf> {
@@ -1246,9 +1224,14 @@ fn live_relay_round_trip_when_binary_is_available() {
     let duplicate = client
         .post_blob(workspace, &payloads[0])
         .expect("re-post identical blob");
-    assert_eq!(duplicate, first, "relay must be idempotent for identical bytes");
+    assert_eq!(
+        duplicate, first,
+        "relay must be idempotent for identical bytes"
+    );
 
-    let second = client.post_blob(workspace, &payloads[1]).expect("post second");
+    let second = client
+        .post_blob(workspace, &payloads[1])
+        .expect("post second");
     assert_eq!(second.seq, 2);
     client
         .post_blob(workspace, &payloads[2])
@@ -1268,26 +1251,18 @@ fn live_relay_round_trip_when_binary_is_available() {
     assert_eq!(tail[0].seq, 2);
 
     // delete: present then absent
-    assert!(
-        client
-            .delete_blob(workspace, &second.id)
-            .expect("delete present blob")
-    );
-    assert!(
-        !client
-            .delete_blob(workspace, &second.id)
-            .expect("delete missing blob")
-    );
+    assert!(client
+        .delete_blob(workspace, &second.id)
+        .expect("delete present blob"));
+    assert!(!client
+        .delete_blob(workspace, &second.id)
+        .expect("delete missing blob"));
     assert_eq!(client.head(workspace).expect("head after delete"), 3);
     assert_eq!(client.fetch_since(workspace, 0).expect("fetch").len(), 2);
 
     // push_changes: fill an empty workspace, then only send what is missing
     let push_workspace = ws_b();
-    let changes: Vec<Vec<u8>> = vec![
-        b"alpha".to_vec(),
-        b"beta".to_vec(),
-        b"gamma".to_vec(),
-    ];
+    let changes: Vec<Vec<u8>> = vec![b"alpha".to_vec(), b"beta".to_vec(), b"gamma".to_vec()];
     assert_eq!(
         client
             .push_changes(push_workspace, &changes)

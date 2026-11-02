@@ -1,4 +1,4 @@
-//! MeshDoc — offline-first, end-to-end-encrypted collaboration.
+//! MeshDoc, offline-first, end-to-end-encrypted collaboration.
 //!
 //! This is the Android client. It is a working prototype: the core loop (identity,
 //! invite-based workspaces, CRDT documents, encrypted change sync, BLE discovery and
@@ -44,9 +44,7 @@ void snack(BuildContext context, String message, {bool error = false}) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Home: identity + workspace list
-// ---------------------------------------------------------------------------
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -230,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
             ),
             const SizedBox(height: 4),
-            Text('No account, no phone number — your identity is this key.',
+            Text('No account, no phone number, your identity is this key.',
                 style: theme.textTheme.bodySmall),
           ]),
         ),
@@ -261,9 +259,7 @@ Future<String?> _askText(
   );
 }
 
-// ---------------------------------------------------------------------------
 // Workspace: documents + sync
-// ---------------------------------------------------------------------------
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({
@@ -372,7 +368,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           title: const Text('Invite token'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('${invite.bytes} bytes — QR-sized. Send it to the joining device.'),
+              Text('${invite.bytes} bytes, QR-sized. Send it to the joining device.'),
               const SizedBox(height: 12),
               SelectableText(invite.token,
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
@@ -477,9 +473,7 @@ IconData _iconFor(String type) => switch (type) {
       _ => Icons.description,
     };
 
-// ---------------------------------------------------------------------------
 // Document
-// ---------------------------------------------------------------------------
 
 class DocumentScreen extends StatefulWidget {
   const DocumentScreen({
@@ -627,9 +621,7 @@ class _DocumentScreenState extends State<DocumentScreen> {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Radio panel: discovery + sync
-// ---------------------------------------------------------------------------
 
 class RadioPanel extends StatefulWidget {
   const RadioPanel({

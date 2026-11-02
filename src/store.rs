@@ -11,7 +11,7 @@
 //! File format: `"MDS1" | salt(16) | nonce(24) | ciphertext`
 //!
 //! The change log is sealed as a whole. That is simpler and safer than per-record
-//! encryption, at the cost of rewriting the file on each save — acceptable for the
+//! encryption, at the cost of rewriting the file on each save, acceptable for the
 //! document sizes this tool targets, and it means a torn write cannot leave a
 //! half-encrypted log (writes go to a temp file and are renamed).
 
@@ -51,8 +51,16 @@ impl std::fmt::Display for StoreError {
     }
 }
 impl std::error::Error for StoreError {}
-impl From<std::io::Error> for StoreError { fn from(e: std::io::Error) -> Self { StoreError::Io(e.to_string()) } }
-impl From<CryptoError> for StoreError { fn from(e: CryptoError) -> Self { StoreError::Crypto(e.to_string()) } }
+impl From<std::io::Error> for StoreError {
+    fn from(e: std::io::Error) -> Self {
+        StoreError::Io(e.to_string())
+    }
+}
+impl From<CryptoError> for StoreError {
+    fn from(e: CryptoError) -> Self {
+        StoreError::Crypto(e.to_string())
+    }
+}
 
 pub struct Store {
     dir: PathBuf,
@@ -65,14 +73,22 @@ impl Store {
         Ok(Self { dir })
     }
 
-    pub fn dir(&self) -> &Path { &self.dir }
-
-    fn identity_path(&self) -> PathBuf { self.dir.join("identity.mds") }
-    fn workspace_path(&self, ws: &WorkspaceId) -> PathBuf {
-        self.dir.join("workspaces").join(format!("{}.mds", ws.to_hex()))
+    pub fn dir(&self) -> &Path {
+        &self.dir
     }
 
-    pub fn has_identity(&self) -> bool { self.identity_path().exists() }
+    fn identity_path(&self) -> PathBuf {
+        self.dir.join("identity.mds")
+    }
+    fn workspace_path(&self, ws: &WorkspaceId) -> PathBuf {
+        self.dir
+            .join("workspaces")
+            .join(format!("{}.mds", ws.to_hex()))
+    }
+
+    pub fn has_identity(&self) -> bool {
+        self.identity_path().exists()
+    }
 
     /// Save the device identity, sealed under a passphrase.
     pub fn save_identity(&self, id: &Identity, passphrase: &str) -> Result<(), StoreError> {
@@ -85,10 +101,14 @@ impl Store {
     }
 
     pub fn load_identity(&self, passphrase: &str) -> Result<Identity, StoreError> {
-        if !self.has_identity() { return Err(StoreError::NoIdentity); }
+        if !self.has_identity() {
+            return Err(StoreError::NoIdentity);
+        }
         let raw = fs::read(self.identity_path())?;
         let plain = open_record(passphrase, &raw)?;
-        if plain.len() != 64 { return Err(StoreError::Format("identity record length".into())); }
+        if plain.len() != 64 {
+            return Err(StoreError::Format("identity record length".into()));
+        }
         let mut seed = [0u8; 32];
         let mut dh = [0u8; 32];
         seed.copy_from_slice(&plain[..32]);
@@ -110,11 +130,13 @@ impl Store {
         passphrase: &str,
     ) -> Result<Node, StoreError> {
         let path = self.workspace_path(&ws);
-        if !path.exists() { return Err(StoreError::NoSuchWorkspace(ws)); }
+        if !path.exists() {
+            return Err(StoreError::NoSuchWorkspace(ws));
+        }
         let raw = fs::read(path)?;
         let plain = open_record(passphrase, &raw)?;
-        let state: PersistState = serde_json::from_slice(&plain)
-            .map_err(|e| StoreError::Format(e.to_string()))?;
+        let state: PersistState =
+            serde_json::from_slice(&plain).map_err(|e| StoreError::Format(e.to_string()))?;
         Node::import_state(identity, state).map_err(|e| StoreError::Format(e.to_string()))
     }
 
@@ -122,9 +144,13 @@ impl Store {
         let mut out = vec![];
         for entry in fs::read_dir(self.dir.join("workspaces"))? {
             let p = entry?.path();
-            if p.extension().and_then(|e| e.to_str()) != Some("mds") { continue; }
+            if p.extension().and_then(|e| e.to_str()) != Some("mds") {
+                continue;
+            }
             if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
-                if let Some(ws) = WorkspaceId::from_hex(stem) { out.push(ws); }
+                if let Some(ws) = WorkspaceId::from_hex(stem) {
+                    out.push(ws);
+                }
             }
         }
         out.sort();
@@ -133,7 +159,9 @@ impl Store {
 
     pub fn delete_workspace(&self, ws: &WorkspaceId) -> Result<(), StoreError> {
         let p = self.workspace_path(ws);
-        if p.exists() { fs::remove_file(p)?; }
+        if p.exists() {
+            fs::remove_file(p)?;
+        }
         Ok(())
     }
 }
@@ -188,7 +216,9 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
     }
     fs::rename(&tmp, path)?;
     if let Some(parent) = path.parent() {
-        if let Ok(d) = fs::File::open(parent) { let _ = d.sync_all(); }
+        if let Ok(d) = fs::File::open(parent) {
+            let _ = d.sync_all();
+        }
     }
     Ok(())
 }
@@ -203,7 +233,10 @@ mod tests {
         let p = std::env::temp_dir().join(format!(
             "meshdoc-store-{tag}-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         fs::create_dir_all(&p).unwrap();
         p
@@ -215,7 +248,9 @@ mod tests {
         let store = Store::open(&dir).unwrap();
         let id = Identity::generate();
         let fp = id.fingerprint();
-        store.save_identity(&id, "correct horse battery staple").unwrap();
+        store
+            .save_identity(&id, "correct horse battery staple")
+            .unwrap();
         let back = store.load_identity("correct horse battery staple").unwrap();
         assert_eq!(back.fingerprint(), fp);
         let _ = fs::remove_dir_all(&dir);
@@ -226,7 +261,10 @@ mod tests {
         let dir = tmpdir("wrongpass");
         let store = Store::open(&dir).unwrap();
         store.save_identity(&Identity::generate(), "one").unwrap();
-        assert!(matches!(store.load_identity("two"), Err(StoreError::WrongPassphrase)));
+        assert!(matches!(
+            store.load_identity("two"),
+            Err(StoreError::WrongPassphrase)
+        ));
         let _ = fs::remove_dir_all(&dir);
     }
 

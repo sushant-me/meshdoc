@@ -1,25 +1,18 @@
-//! Wi-Fi Direct group formation: role election and the pre-sync handshake.
+//! Wi-Fi Direct group formation.
 //!
-//! Android's Wi-Fi Direct API decides who becomes the group owner from a
-//! *group owner intent* value each side supplies. If both sides ask for 15 or both
-//! ask for 0, negotiation can stall or pick an arbitrary side, so the choice must be
-//! taken out of the platform's hands and derived from something both peers already
-//! agree on.
+//! Android picks the group owner from a "group owner intent" value that each side
+//! supplies. If both sides ask for 15, or both ask for 0, negotiation can stall or
+//! land on the wrong device. So we do not let the platform decide.
 //!
-//! # Role election
+//! The peer with the lexicographically smaller identity fingerprint asks for intent
+//! 15, the other asks for 0. Both sides compute this from the same two fingerprints,
+//! so they always ask for opposite roles. No loop, no tie, and it survives a retry.
 //!
-//! The peer with the **lexicographically smaller identity fingerprint** requests
-//! owner intent 15; the other requests 0. Both sides compute this from the same two
-//! fingerprints, so they always ask for opposite roles — no negotiation loop, no
-//! tie, and the result is stable across retries.
-//!
-//! # Why a handshake, not just "connect and sync"
-//!
-//! The group owner's socket is reachable by *any device that joins the group*,
-//! including one that never held the workspace key. Ciphertext is useless to it, but
-//! it could still probe, and it would learn timing and sizes. So before any sync
-//! frame is exchanged, each side proves possession of a workspace identity key and
-//! membership of the workspace; anything else is dropped.
+//! Then a handshake, because the group owner's socket is reachable by anything that
+//! joins the group, including a device that never held the workspace key. It cannot
+//! read the ciphertext, but it could probe, and it would learn timing and sizes. So
+//! before a single sync frame crosses, each side proves it holds a workspace
+//! identity key and is a current member. Anything else gets dropped.
 //!
 //! ```text
 //! client                                   group owner (listener)
@@ -28,7 +21,6 @@
 //!   |                                  verify pubkey is a current member
 //!   |<-- Hello{v, ws, pubkey, nonce, sig} --------|
 //!   |-- Ok -------------------------------------->|
-//!   |                  sync protocol runs here     |
 //! ```
 
 use std::collections::BTreeSet;
@@ -71,7 +63,9 @@ impl GroupRole {
         }
     }
 
-    pub fn is_owner(self) -> bool { matches!(self, GroupRole::Owner) }
+    pub fn is_owner(self) -> bool {
+        matches!(self, GroupRole::Owner)
+    }
 }
 
 /// Deterministic, symmetric role election.
@@ -115,8 +109,16 @@ impl std::fmt::Display for P2pError {
     }
 }
 impl std::error::Error for P2pError {}
-impl From<TransportError> for P2pError { fn from(e: TransportError) -> Self { P2pError::Transport(e) } }
-impl From<CryptoError> for P2pError { fn from(_: CryptoError) -> Self { P2pError::BadSignature } }
+impl From<TransportError> for P2pError {
+    fn from(e: TransportError) -> Self {
+        P2pError::Transport(e)
+    }
+}
+impl From<CryptoError> for P2pError {
+    fn from(_: CryptoError) -> Self {
+        P2pError::BadSignature
+    }
+}
 
 /// Identity proof exchanged before any sync traffic.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -153,7 +155,11 @@ impl P2pHello {
     }
 
     /// Verify the peer's signature, workspace and membership.
-    pub fn verify(&self, expected_ws: WorkspaceId, members: &BTreeSet<PeerId>) -> Result<PeerId, P2pError> {
+    pub fn verify(
+        &self,
+        expected_ws: WorkspaceId,
+        members: &BTreeSet<PeerId>,
+    ) -> Result<PeerId, P2pError> {
         if self.version != PROTOCOL_VERSION {
             return Err(P2pError::VersionMismatch(self.version));
         }
@@ -161,7 +167,10 @@ impl P2pHello {
             return Err(P2pError::WrongWorkspace);
         }
         self.peer
-            .verify(&Self::message(&self.workspace_id, &self.nonce), &self.signature)
+            .verify(
+                &Self::message(&self.workspace_id, &self.nonce),
+                &self.signature,
+            )
             .map_err(|_| P2pError::BadSignature)?;
         let fp = self.peer.fingerprint();
         if !members.contains(&fp) {
@@ -172,13 +181,20 @@ impl P2pHello {
 }
 
 /// Run the client half of the handshake. Returns the authenticated peer.
-pub fn handshake_client<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &Node) -> Result<PeerId, P2pError> {
+pub fn handshake_client<R: Read, W: Write>(
+    rx: &mut R,
+    tx: &mut W,
+    node: &Node,
+) -> Result<PeerId, P2pError> {
     let mine = P2pHello::create(&node.identity, node.workspace_id);
-    write_frame(tx, &bincode::serialize(&mine).map_err(|_| P2pError::Protocol("encode".into()))?)?;
+    write_frame(
+        tx,
+        &bincode::serialize(&mine).map_err(|_| P2pError::Protocol("encode".into()))?,
+    )?;
 
     let frame = read_frame(rx)?;
-    let hello: P2pHello = bincode::deserialize(&frame)
-        .map_err(|_| P2pError::Protocol("undecodable hello".into()))?;
+    let hello: P2pHello =
+        bincode::deserialize(&frame).map_err(|_| P2pError::Protocol("undecodable hello".into()))?;
     // Validate against the caller's own membership view, not the peer's claim.
     hello.verify(node.workspace_id, &node.members())?;
 
@@ -188,14 +204,21 @@ pub fn handshake_client<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &Node) 
 }
 
 /// Run the server half of the handshake. Returns the authenticated peer.
-pub fn handshake_serve<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &Node) -> Result<PeerId, P2pError> {
+pub fn handshake_serve<R: Read, W: Write>(
+    rx: &mut R,
+    tx: &mut W,
+    node: &Node,
+) -> Result<PeerId, P2pError> {
     let frame = read_frame(rx)?;
-    let hello: P2pHello = bincode::deserialize(&frame)
-        .map_err(|_| P2pError::Protocol("undecodable hello".into()))?;
+    let hello: P2pHello =
+        bincode::deserialize(&frame).map_err(|_| P2pError::Protocol("undecodable hello".into()))?;
     let peer = hello.verify(node.workspace_id, &node.members())?;
 
     let mine = P2pHello::create(&node.identity, node.workspace_id);
-    write_frame(tx, &bincode::serialize(&mine).map_err(|_| P2pError::Protocol("encode".into()))?)?;
+    write_frame(
+        tx,
+        &bincode::serialize(&mine).map_err(|_| P2pError::Protocol("encode".into()))?,
+    )?;
 
     let ack = read_frame(rx)?;
     if ack != b"OK" {
@@ -247,7 +270,9 @@ pub enum P2pState {
 }
 
 impl P2pState {
-    pub fn is_idle(&self) -> bool { matches!(self, P2pState::Idle) }
+    pub fn is_idle(&self) -> bool {
+        matches!(self, P2pState::Idle)
+    }
 }
 
 #[cfg(test)]
@@ -273,7 +298,9 @@ mod tests {
         // And the two answers are always opposite, for any pair.
         for x in 0u8..8 {
             for y in 0u8..8 {
-                if x == y { continue; }
+                if x == y {
+                    continue;
+                }
                 assert_ne!(elect_role(ids(x), ids(y)), elect_role(ids(y), ids(x)));
             }
         }
@@ -346,11 +373,17 @@ mod tests {
         let members = a.members();
         let other_ws = WorkspaceId::random();
         let hello = P2pHello::create(&a.identity, other_ws);
-        assert!(matches!(hello.verify(a.workspace_id, &members), Err(P2pError::WrongWorkspace)));
+        assert!(matches!(
+            hello.verify(a.workspace_id, &members),
+            Err(P2pError::WrongWorkspace)
+        ));
 
         let mut tampered = P2pHello::create(&a.identity, a.workspace_id);
         tampered.nonce[0] ^= 0xff;
-        assert!(matches!(tampered.verify(a.workspace_id, &members), Err(P2pError::BadSignature)));
+        assert!(matches!(
+            tampered.verify(a.workspace_id, &members),
+            Err(P2pError::BadSignature)
+        ));
     }
 
     #[test]
@@ -359,11 +392,19 @@ mod tests {
         assert!(s.is_idle());
         let s = P2pState::Discovering { peers: 2 };
         assert!(!s.is_idle());
-        let s = P2pState::Forming { role: GroupRole::Owner };
+        let s = P2pState::Forming {
+            role: GroupRole::Owner,
+        };
         assert!(matches!(s, P2pState::Forming { role } if role.is_owner()));
-        let s = P2pState::Connected { peer: ids(3), role: GroupRole::Client };
+        let s = P2pState::Connected {
+            peer: ids(3),
+            role: GroupRole::Client,
+        };
         assert!(matches!(s, P2pState::Connected { .. }));
-        let s = P2pState::Finished { ok: true, reason: "converged".into() };
+        let s = P2pState::Finished {
+            ok: true,
+            reason: "converged".into(),
+        };
         assert!(matches!(s, P2pState::Finished { ok: true, .. }));
     }
 

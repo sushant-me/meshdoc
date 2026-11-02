@@ -3,9 +3,9 @@
 //! The point of this trait is that the sync engine never knows which radio it is
 //! using. Three implementations exist:
 //!
-//! * [`TcpMesh`] — real sockets over Wi-Fi/LAN. This is the production transport
+//! * [`TcpMesh`]: real sockets over Wi-Fi/LAN. This is the production transport
 //!   for a same-network deployment and the reference for a Wi-Fi Direct backend.
-//! * [`sim::SimMesh`] — an in-memory network with controllable partitions, used by
+//! * [`sim::SimMesh`]: an in-memory network with controllable partitions, used by
 //!   the convergence fuzzer and the demo. It models the thing that actually
 //!   matters (links appearing and disappearing) without needing radios.
 //! * (future) BLE discovery + Wi-Fi Direct group formation, which sit behind this
@@ -44,7 +44,9 @@ impl std::fmt::Display for TransportError {
 impl std::error::Error for TransportError {}
 
 impl From<std::io::Error> for TransportError {
-    fn from(e: std::io::Error) -> Self { TransportError::Io(e.to_string()) }
+    fn from(e: std::io::Error) -> Self {
+        TransportError::Io(e.to_string())
+    }
 }
 
 /// Write one length-prefixed frame.
@@ -71,7 +73,7 @@ pub fn read_frame(r: &mut impl Read) -> Result<Vec<u8>, TransportError> {
     Ok(buf)
 }
 
-// ---------------------------------------------------------------------- TCP mesh
+// TCP mesh
 
 /// A real-socket mesh node: listens for peers and dials them.
 pub struct TcpMesh {
@@ -84,10 +86,15 @@ impl TcpMesh {
     pub fn bind(port: u16) -> Result<Self, TransportError> {
         let listener = TcpListener::bind(("0.0.0.0", port))?;
         let addr = listener.local_addr()?;
-        Ok(Self { addr, _listener: Arc::new(listener) })
+        Ok(Self {
+            addr,
+            _listener: Arc::new(listener),
+        })
     }
 
-    pub fn local_addr(&self) -> SocketAddr { self.addr }
+    pub fn local_addr(&self) -> SocketAddr {
+        self.addr
+    }
 
     /// Dial a peer and return the connected stream.
     pub fn connect(addr: SocketAddr) -> Result<TcpStream, TransportError> {
@@ -108,11 +115,11 @@ impl TcpMesh {
     }
 }
 
-// ---------------------------------------------------------------- simulated mesh
+// simulated mesh
 
 pub mod sim {
     //! An in-memory network whose links can be cut. Used by the convergence
-    //! fuzzer: it models the only property that matters for sync correctness —
+    //! fuzzer: it models the only property that matters for sync correctness ,
     //! that two peers are sometimes reachable and sometimes not.
 
     use super::*;
@@ -139,7 +146,9 @@ pub mod sim {
     }
 
     impl Default for SimMesh {
-        fn default() -> Self { Self::new() }
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl SimMesh {
@@ -210,7 +219,8 @@ pub mod sim {
             inner.inbox = keep;
             let _ = now;
             drop(inner);
-            self.delivered.fetch_add(arrived.len() as u64, Ordering::Relaxed);
+            self.delivered
+                .fetch_add(arrived.len() as u64, Ordering::Relaxed);
             arrived
         }
 
@@ -218,7 +228,9 @@ pub mod sim {
         pub fn quiesce(&self) -> (u64, u64) {
             for _ in 0..10_000 {
                 let n = self.tick().len();
-                if n == 0 && self.inner.lock().unwrap().inbox.is_empty() { break; }
+                if n == 0 && self.inner.lock().unwrap().inbox.is_empty() {
+                    break;
+                }
             }
             (
                 self.delivered.load(Ordering::Relaxed),
@@ -226,12 +238,16 @@ pub mod sim {
             )
         }
 
-        pub fn in_flight(&self) -> usize { self.inner.lock().unwrap().inbox.len() }
+        pub fn in_flight(&self) -> usize {
+            self.inner.lock().unwrap().inbox.len()
+        }
 
         pub fn flush_all(&self) {
             for _ in 0..10_000 {
                 let n = self.tick().len();
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
             }
         }
     }
@@ -256,7 +272,10 @@ mod tests {
     fn oversized_frame_is_rejected_on_write() {
         let mut buf = Vec::new();
         let big = vec![0u8; MAX_FRAME + 1];
-        assert!(matches!(write_frame(&mut buf, &big), Err(TransportError::FrameTooLarge(_))));
+        assert!(matches!(
+            write_frame(&mut buf, &big),
+            Err(TransportError::FrameTooLarge(_))
+        ));
     }
 
     #[test]
@@ -265,7 +284,10 @@ mod tests {
         buf.extend_from_slice(&((MAX_FRAME + 1) as u32).to_le_bytes());
         buf.extend_from_slice(&[0u8; 16]);
         let mut r = Cursor::new(buf);
-        assert!(matches!(read_frame(&mut r), Err(TransportError::FrameTooLarge(_))));
+        assert!(matches!(
+            read_frame(&mut r),
+            Err(TransportError::FrameTooLarge(_))
+        ));
     }
 
     #[test]

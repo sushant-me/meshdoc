@@ -1,11 +1,11 @@
 //! Anti-entropy sync.
 //!
 //! Two peers reconcile by exchanging the *content addresses* of the changes they
-//! hold, then transferring only the difference. The initiator **pulls**: it sends
+//! hold, then transferring only the difference. The initiator pulls: it sends
 //! what it has, the responder answers with a bounded page of what the initiator is
 //! missing, and the initiator acknowledges. Because the known-set is re-sent on
 //! every connection, a link that dies mid-transfer simply resumes on the next
-//! contact with nothing re-sent — the DTN mindset applied to a direct link.
+//! contact with nothing re-sent, the DTN mindset applied to a direct link.
 //!
 //! The protocol is deliberately page-based rather than a streaming diff: pages
 //! bound memory on both sides, make progress observable, and let a partially
@@ -54,9 +54,16 @@ pub enum SyncMsg {
         changed: usize,
         sent: usize,
     },
-    Ack { applied: usize },
-    Done { total_received: usize, total_sent: usize },
-    Error { message: String },
+    Ack {
+        applied: usize,
+    },
+    Done {
+        total_received: usize,
+        total_sent: usize,
+    },
+    Error {
+        message: String,
+    },
 }
 
 #[derive(Debug)]
@@ -74,14 +81,24 @@ impl std::fmt::Display for SyncError {
             SyncError::Transport(e) => write!(f, "{e}"),
             SyncError::Node(e) => write!(f, "{e}"),
             SyncError::Protocol(m) => write!(f, "sync protocol error: {m}"),
-            SyncError::VersionMismatch(v) => write!(f, "peer speaks protocol v{v}, we speak v{PROTOCOL_VERSION}"),
+            SyncError::VersionMismatch(v) => {
+                write!(f, "peer speaks protocol v{v}, we speak v{PROTOCOL_VERSION}")
+            }
             SyncError::PeerError(m) => write!(f, "peer reported: {m}"),
         }
     }
 }
 impl std::error::Error for SyncError {}
-impl From<TransportError> for SyncError { fn from(e: TransportError) -> Self { SyncError::Transport(e) } }
-impl From<NodeError> for SyncError { fn from(e: NodeError) -> Self { SyncError::Node(e) } }
+impl From<TransportError> for SyncError {
+    fn from(e: TransportError) -> Self {
+        SyncError::Transport(e)
+    }
+}
+impl From<NodeError> for SyncError {
+    fn from(e: NodeError) -> Self {
+        SyncError::Node(e)
+    }
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct SyncStats {
@@ -93,7 +110,11 @@ pub struct SyncStats {
 
 /// Serve one inbound sync session. Returns when the peer says `Done` or the link
 /// drops. Safe to call repeatedly for successive peers.
-pub fn serve<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Result<SyncStats, SyncError> {
+pub fn serve<R: Read, W: Write>(
+    rx: &mut R,
+    tx: &mut W,
+    node: &mut Node,
+) -> Result<SyncStats, SyncError> {
     let mut stats = SyncStats::default();
     loop {
         let frame = match read_frame(rx) {
@@ -103,16 +124,27 @@ pub fn serve<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Resu
         let msg: SyncMsg = bincode::deserialize(&frame)
             .map_err(|_| SyncError::Protocol("undecodable message".into()))?;
         match msg {
-            SyncMsg::Hello { version, workspace_id, changes, membership } => {
+            SyncMsg::Hello {
+                version,
+                workspace_id,
+                changes,
+                membership,
+            } => {
                 if version != PROTOCOL_VERSION {
-                    let e = SyncMsg::Error { message: format!("unsupported protocol v{version}") };
+                    let e = SyncMsg::Error {
+                        message: format!("unsupported protocol v{version}"),
+                    };
                     let _ = write_frame(tx, &bincode::serialize(&e).unwrap_or_default());
                     return Err(SyncError::VersionMismatch(version));
                 }
                 if workspace_id != node.workspace_id {
-                    let e = SyncMsg::Error { message: "workspace mismatch".into() };
+                    let e = SyncMsg::Error {
+                        message: "workspace mismatch".into(),
+                    };
                     let _ = write_frame(tx, &bincode::serialize(&e).unwrap_or_default());
-                    return Err(SyncError::Protocol("peer is in a different workspace".into()));
+                    return Err(SyncError::Protocol(
+                        "peer is in a different workspace".into(),
+                    ));
                 }
                 let known_changes: BTreeSet<ChangeId> = changes.into_iter().collect();
                 let known_members: BTreeSet<ChangeId> = membership.into_iter().collect();
@@ -122,19 +154,25 @@ pub fn serve<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Resu
                 stats.sent += out_changes.len();
                 let resp = SyncMsg::Response {
                     changes: out_changes.iter().map(|c| c.encode()).collect(),
-                    membership: out_members.iter().map(|m| {
-                        serde_json::to_vec(m).unwrap_or_default()
-                    }).collect(),
+                    membership: out_members
+                        .iter()
+                        .map(|m| serde_json::to_vec(m).unwrap_or_default())
+                        .collect(),
                     more,
                     changed: 0,
                     sent: out_changes.len(),
                 };
-                write_frame(tx, &bincode::serialize(&resp).map_err(|_| SyncError::Protocol("encode".into()))?)?;
+                write_frame(
+                    tx,
+                    &bincode::serialize(&resp).map_err(|_| SyncError::Protocol("encode".into()))?,
+                )?;
             }
             SyncMsg::Ack { .. } => {}
             SyncMsg::Done { .. } => return Ok(stats),
             other => {
-                let e = SyncMsg::Error { message: format!("unexpected message: {other:?}") };
+                let e = SyncMsg::Error {
+                    message: format!("unexpected message: {other:?}"),
+                };
                 let _ = write_frame(tx, &bincode::serialize(&e).unwrap_or_default());
                 return Err(SyncError::Protocol("unexpected message".into()));
             }
@@ -144,7 +182,11 @@ pub fn serve<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Resu
 
 /// Pull everything we are missing from a peer. Reconnect and call again to resume;
 /// already-held changes are never re-requested because the known-set is re-sent.
-pub fn pull<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Result<SyncStats, SyncError> {
+pub fn pull<R: Read, W: Write>(
+    rx: &mut R,
+    tx: &mut W,
+    node: &mut Node,
+) -> Result<SyncStats, SyncError> {
     let mut stats = SyncStats::default();
     loop {
         let hello = SyncMsg::Hello {
@@ -153,14 +195,23 @@ pub fn pull<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Resul
             changes: node.change_ids(),
             membership: node.log.ids(),
         };
-        write_frame(tx, &bincode::serialize(&hello).map_err(|_| SyncError::Protocol("encode".into()))?)?;
+        write_frame(
+            tx,
+            &bincode::serialize(&hello).map_err(|_| SyncError::Protocol("encode".into()))?,
+        )?;
 
         let frame = read_frame(rx)?;
         let msg: SyncMsg = bincode::deserialize(&frame)
             .map_err(|_| SyncError::Protocol("undecodable message".into()))?;
 
         match msg {
-            SyncMsg::Response { changes, membership, more, changed, sent } => {
+            SyncMsg::Response {
+                changes,
+                membership,
+                more,
+                changed,
+                sent,
+            } => {
                 stats.pages += 1;
                 stats.sent += sent;
                 // Membership first: it decides whether a change's author is valid.
@@ -179,25 +230,48 @@ pub fn pull<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Resul
                 }
                 stats.applied += node.retry_pending();
                 let _ = changed;
-                let ack = SyncMsg::Ack { applied: stats.applied };
-                write_frame(tx, &bincode::serialize(&ack).map_err(|_| SyncError::Protocol("encode".into()))?)?;
-                if !more { break; }
+                let ack = SyncMsg::Ack {
+                    applied: stats.applied,
+                };
+                write_frame(
+                    tx,
+                    &bincode::serialize(&ack).map_err(|_| SyncError::Protocol("encode".into()))?,
+                )?;
+                if !more {
+                    break;
+                }
                 // Guard against a peer that never makes progress.
-                if sent == 0 { break; }
+                if sent == 0 {
+                    break;
+                }
             }
             SyncMsg::Error { message } => return Err(SyncError::PeerError(message)),
-            other => return Err(SyncError::Protocol(format!("unexpected message: {other:?}"))),
+            other => {
+                return Err(SyncError::Protocol(format!(
+                    "unexpected message: {other:?}"
+                )))
+            }
         }
     }
-    let done = SyncMsg::Done { total_received: stats.received, total_sent: stats.sent };
-    let _ = write_frame(tx, &bincode::serialize(&done).map_err(|_| SyncError::Protocol("encode".into()))?);
+    let done = SyncMsg::Done {
+        total_received: stats.received,
+        total_sent: stats.sent,
+    };
+    let _ = write_frame(
+        tx,
+        &bincode::serialize(&done).map_err(|_| SyncError::Protocol("encode".into()))?,
+    );
     Ok(stats)
 }
 
 /// Two-way sync over a single duplex link: we pull, then we serve.
-/// Order matters less than it looks — a second round trip would find nothing, so
+/// Order matters less than it looks, a second round trip would find nothing, so
 /// running both directions on one connection converges in a single contact.
-pub fn sync_duplex<R: Read, W: Write>(rx: &mut R, tx: &mut W, node: &mut Node) -> Result<SyncStats, SyncError> {
+pub fn sync_duplex<R: Read, W: Write>(
+    rx: &mut R,
+    tx: &mut W,
+    node: &mut Node,
+) -> Result<SyncStats, SyncError> {
     let pulled = pull(rx, tx, node)?;
     let _ = tx.flush();
     Ok(pulled)
@@ -282,7 +356,10 @@ mod tests {
             a.set_note(did, &format!("revision {i}")).unwrap();
         }
         let before = a.change_count();
-        assert!(before > PAGE_CHANGES, "fixture must span more than one page");
+        assert!(
+            before > PAGE_CHANGES,
+            "fixture must span more than one page"
+        );
         let (_sa, sb) = sync_two(&mut a, &mut b);
         assert!(sb.pages >= 2, "expected multiple pages, got {}", sb.pages);
         assert_eq!(a.render(), b.render());
@@ -297,7 +374,10 @@ mod tests {
             a.set_note(did, &format!("revision {i}")).unwrap();
         }
         let total = a.change_count();
-        assert!(total > PAGE_CHANGES, "fixture must exceed one page, got {total}");
+        assert!(
+            total > PAGE_CHANGES,
+            "fixture must exceed one page, got {total}"
+        );
 
         // One page, then the link drops: the initiator closes without Ack/Done.
         let (c1, c2) = UnixStream::pair().unwrap();
@@ -337,7 +417,10 @@ mod tests {
 
         let partial = b.change_count();
         assert!(partial > 0, "some changes arrived before the drop");
-        assert!(partial < total, "transfer was genuinely interrupted ({partial}/{total})");
+        assert!(
+            partial < total,
+            "transfer was genuinely interrupted ({partial}/{total})"
+        );
 
         // Reconnect: the known-set makes it resume without re-sending the first page.
         let (_sa, sb2) = sync_two(&mut a, &mut b);

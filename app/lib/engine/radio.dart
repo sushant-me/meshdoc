@@ -2,7 +2,7 @@
 ///
 /// Contract: docs/INTERFACES.md section B. Implemented in Kotlin
 /// (`RadioPlugin.kt`, `BleRadio.kt`, `WifiDirectRadio.kt`). Nothing here derives
-/// keys — the discovery UUID always comes from the native core.
+/// keys, the discovery UUID always comes from the native core.
 library;
 
 import 'dart:async';

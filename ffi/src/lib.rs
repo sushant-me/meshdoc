@@ -1,16 +1,20 @@
 //! C ABI for the MeshDoc core.
 //!
-//! The Android client links `libmeshdoc.so` through `dart:ffi`. The contract is
-//! frozen in `docs/INTERFACES.md` section A.
+//! The Android client links libmeshdoc.so through dart:ffi. The contract is frozen
+//! in docs/INTERFACES.md section A.
 //!
-//! Design notes:
-//! * **Stateless.** Every call opens the encrypted store, performs one operation and
-//!   closes. That mirrors the CLI, survives process death, and removes any handle
-//!   lifetime bugs across the FFI boundary.
-//! * **JSON in, JSON out.** One allocation per result, freed by [`meshdoc_free`].
-//! * **No unwinding across FFI.** Every entry point is wrapped in `catch_unwind`.
-//! * **Errors never hide.** A NULL return is always accompanied by a message from
-//!   [`meshdoc_last_error`] on the same thread.
+//! Three decisions worth knowing before reading any of it.
+//!
+//! Stateless. Every call opens the encrypted store, does one thing, and closes. It
+//! mirrors what the CLI already did, survives the process being killed, and means
+//! there are no handles to leak across the boundary.
+//!
+//! JSON in, JSON out. One allocation per result, released by meshdoc_free.
+//!
+//! Nothing unwinds across the boundary. Every entry point catches panics and turns
+//! them into an error string, because unwinding into the Dart VM is undefined
+//! behaviour and would take the app down. A NULL return always comes with a message
+//! from meshdoc_last_error on the same thread.
 
 use std::cell::RefCell;
 use std::ffi::{c_char, CStr, CString};
@@ -33,13 +37,16 @@ thread_local! {
 }
 
 fn set_error(msg: impl Into<String>) {
-    let s = CString::new(msg.into().replace('\0', " ")).unwrap_or_else(|_| CString::new("error").unwrap());
+    let s = CString::new(msg.into().replace('\0', " "))
+        .unwrap_or_else(|_| CString::new("error").unwrap());
     LAST_ERROR.with(|e| *e.borrow_mut() = s);
 }
 
 fn ok(value: serde_json::Value) -> *mut c_char {
     let s = value.to_string();
-    CString::new(s).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+    CString::new(s)
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
 }
 
 fn fail(msg: impl Into<String>) -> *mut c_char {
@@ -69,7 +76,10 @@ unsafe fn as_str<'a>(p: *const c_char) -> Result<Option<&'a str>, String> {
     if p.is_null() {
         return Ok(None);
     }
-    CStr::from_ptr(p).to_str().map(Some).map_err(|_| "argument is not valid UTF-8".to_string())
+    CStr::from_ptr(p)
+        .to_str()
+        .map(Some)
+        .map_err(|_| "argument is not valid UTF-8".to_string())
 }
 
 fn req<'a>(p: *const c_char, name: &str) -> Result<&'a str, String> {
@@ -102,18 +112,24 @@ impl Ctx {
         } else {
             WorkspaceId::from_hex(ws).ok_or_else(|| format!("malformed workspace id: {ws}"))?
         };
-        let node = store.load_node(identity, wsid, pass).map_err(|e| e.to_string())?;
-        Ok(Self { store, pass: pass.to_string(), node })
+        let node = store
+            .load_node(identity, wsid, pass)
+            .map_err(|e| e.to_string())?;
+        Ok(Self {
+            store,
+            pass: pass.to_string(),
+            node,
+        })
     }
 
     fn save(&self) -> Result<(), String> {
-        self.store.save_node(&self.node, &self.pass).map_err(|e| e.to_string())
+        self.store
+            .save_node(&self.node, &self.pass)
+            .map_err(|e| e.to_string())
     }
 }
 
-// ---------------------------------------------------------------------------
 // Version / memory / errors
-// ---------------------------------------------------------------------------
 
 #[no_mangle]
 pub extern "C" fn meshdoc_version() -> *mut c_char {
@@ -134,13 +150,13 @@ pub unsafe extern "C" fn meshdoc_free(s: *mut c_char) {
 pub extern "C" fn meshdoc_last_error() -> *mut c_char {
     LAST_ERROR.with(|e| {
         let b = e.borrow();
-        CString::new(b.to_bytes()).unwrap_or_else(|_| CString::new("error").unwrap()).into_raw()
+        CString::new(b.to_bytes())
+            .unwrap_or_else(|_| CString::new("error").unwrap())
+            .into_raw()
     })
 }
 
-// ---------------------------------------------------------------------------
 // Identity
-// ---------------------------------------------------------------------------
 
 /// Create a device identity if none exists. Idempotent.
 #[no_mangle]
@@ -196,9 +212,7 @@ pub extern "C" fn meshdoc_identity(store: *const c_char, pass: *const c_char) ->
     })
 }
 
-// ---------------------------------------------------------------------------
 // Workspace lifecycle
-// ---------------------------------------------------------------------------
 
 #[no_mangle]
 pub extern "C" fn meshdoc_workspace_create(
@@ -276,7 +290,9 @@ pub extern "C" fn meshdoc_workspace_list(store: *const c_char, pass: *const c_ch
                     "docs": n.doc_ids().len(),
                     "members": n.members().len(),
                 })),
-                Err(_) => out.push(json!({"id": id.to_hex(), "name": "", "epoch": 0, "docs": 0, "members": 0})),
+                Err(_) => out.push(
+                    json!({"id": id.to_hex(), "name": "", "epoch": 0, "docs": 0, "members": 0}),
+                ),
             }
         }
         ok(json!({ "workspaces": out }))
@@ -284,7 +300,9 @@ pub extern "C" fn meshdoc_workspace_list(store: *const c_char, pass: *const c_ch
 }
 
 fn identity_from(store: &Store, pass: &str) -> Identity {
-    store.load_identity(pass).unwrap_or_else(|_| Identity::generate())
+    store
+        .load_identity(pass)
+        .unwrap_or_else(|_| Identity::generate())
 }
 
 #[no_mangle]
@@ -331,10 +349,11 @@ pub extern "C" fn meshdoc_workspace_join(
     token: *const c_char,
 ) -> *mut c_char {
     guard(|| {
-        let (store, pass, token) = match (req(store, "store"), req(pass, "pass"), req(token, "token")) {
-            (Ok(a), Ok(b), Ok(c)) => (a, b, c),
-            _ => return fail("store, pass and token are required"),
-        };
+        let (store, pass, token) =
+            match (req(store, "store"), req(pass, "pass"), req(token, "token")) {
+                (Ok(a), Ok(b), Ok(c)) => (a, b, c),
+                _ => return fail("store, pass and token are required"),
+            };
         let s = match Store::open(PathBuf::from(store)) {
             Ok(s) => s,
             Err(e) => return fail(e.to_string()),
@@ -371,9 +390,7 @@ pub extern "C" fn meshdoc_workspace_join(
     })
 }
 
-// ---------------------------------------------------------------------------
 // Documents
-// ---------------------------------------------------------------------------
 
 #[no_mangle]
 pub extern "C" fn meshdoc_state(
@@ -610,9 +627,7 @@ pub extern "C" fn meshdoc_checklist_toggle(
     })
 }
 
-// ---------------------------------------------------------------------------
 // Sync
-// ---------------------------------------------------------------------------
 
 #[no_mangle]
 pub extern "C" fn meshdoc_sync_pull(
@@ -716,9 +731,7 @@ pub extern "C" fn meshdoc_sync_serve(
     })
 }
 
-// ---------------------------------------------------------------------------
 // Discovery
-// ---------------------------------------------------------------------------
 
 /// The rotating BLE advertisement tag for this workspace at `unix_seconds`.
 #[no_mangle]

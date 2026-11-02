@@ -95,7 +95,7 @@ impl ChangeEnvelope {
         bincode::deserialize(bytes).map_err(|_| ChangeError::Malformed)
     }
 
-    /// Verify the author and decrypt. Does **not** check membership; callers pass
+    /// Verify the author and decrypt. Does not check membership; callers pass
     /// the log so the policy is explicit at the call site.
     pub fn open(&self, log: &MembershipLog, key: &WorkspaceKey) -> Result<Vec<u8>, ChangeError> {
         // 1. Routing metadata must match what we expected to receive.
@@ -109,18 +109,21 @@ impl ChangeEnvelope {
         // 3. Decrypt (AEAD also authenticates the AAD, so the routing metadata is
         //    bound to the ciphertext).
         let aad = self.header();
-        key.open(&self.ciphertext, &aad).map_err(|_| ChangeError::Undecryptable)
+        key.open(&self.ciphertext, &aad)
+            .map_err(|_| ChangeError::Undecryptable)
     }
 
     /// Verify signature and metadata without decrypting. Useful for a relay-side
-    /// sanity check (a relay must not do this — it stays content-blind).
+    /// sanity check (a relay must not do this, it stays content-blind).
     pub fn verify(&self) -> Result<(), ChangeError> {
         self.author
             .verify(&self.signing_bytes(), &self.signature)
             .map_err(|_| ChangeError::BadSignature)
     }
 
-    pub fn approx_len(&self) -> usize { self.ciphertext.len() + 64 + 64 + 64 }
+    pub fn approx_len(&self) -> usize {
+        self.ciphertext.len() + 64 + 64 + 64
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -149,7 +152,13 @@ mod tests {
     use crate::crypto::seal_key_grant;
     use crate::membership::EntryBuilder;
 
-    struct Fixture { ws: WorkspaceId, log: MembershipLog, key: WorkspaceKey, alice: Identity, bob: Identity }
+    struct Fixture {
+        ws: WorkspaceId,
+        log: MembershipLog,
+        key: WorkspaceKey,
+        alice: Identity,
+        bob: Identity,
+    }
 
     fn fixture() -> Fixture {
         let ws = WorkspaceId::random();
@@ -161,18 +170,37 @@ mod tests {
         let gid = genesis.id();
         log.insert(ws, genesis).unwrap();
         let add = EntryBuilder::new(&alice).add(
-            ws, Epoch::GENESIS, bob.public(),
-            seal_key_grant(&bob.public(), &key).unwrap(), vec![gid], 1,
+            ws,
+            Epoch::GENESIS,
+            bob.public(),
+            seal_key_grant(&bob.public(), &key).unwrap(),
+            vec![gid],
+            1,
         );
         log.insert(ws, add).unwrap();
-        Fixture { ws, log, key, alice, bob }
+        Fixture {
+            ws,
+            log,
+            key,
+            alice,
+            bob,
+        }
     }
 
     #[test]
     fn roundtrip_create_open() {
         let f = fixture();
         let doc = DocId::random();
-        let env = ChangeEnvelope::create(&f.alice, f.ws, doc, Epoch::GENESIS, 1, &f.key, b"crdt-update").unwrap();
+        let env = ChangeEnvelope::create(
+            &f.alice,
+            f.ws,
+            doc,
+            Epoch::GENESIS,
+            1,
+            &f.key,
+            b"crdt-update",
+        )
+        .unwrap();
         let bytes = env.encode();
         let back = ChangeEnvelope::decode(&bytes).unwrap();
         assert_eq!(back.id(), env.id());
@@ -182,7 +210,16 @@ mod tests {
     #[test]
     fn ciphertext_is_not_plaintext_on_the_wire() {
         let f = fixture();
-        let env = ChangeEnvelope::create(&f.alice, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"SECRET").unwrap();
+        let env = ChangeEnvelope::create(
+            &f.alice,
+            f.ws,
+            DocId::random(),
+            Epoch::GENESIS,
+            1,
+            &f.key,
+            b"SECRET",
+        )
+        .unwrap();
         let wire = env.encode();
         assert!(!wire.windows(6).any(|w| w == b"SECRET"));
     }
@@ -190,7 +227,16 @@ mod tests {
     #[test]
     fn rejects_wrong_key() {
         let f = fixture();
-        let env = ChangeEnvelope::create(&f.alice, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"x").unwrap();
+        let env = ChangeEnvelope::create(
+            &f.alice,
+            f.ws,
+            DocId::random(),
+            Epoch::GENESIS,
+            1,
+            &f.key,
+            b"x",
+        )
+        .unwrap();
         let other = WorkspaceKey::generate();
         assert_eq!(env.open(&f.log, &other), Err(ChangeError::Undecryptable));
     }
@@ -198,7 +244,16 @@ mod tests {
     #[test]
     fn rejects_tampered_signature() {
         let f = fixture();
-        let mut env = ChangeEnvelope::create(&f.alice, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"x").unwrap();
+        let mut env = ChangeEnvelope::create(
+            &f.alice,
+            f.ws,
+            DocId::random(),
+            Epoch::GENESIS,
+            1,
+            &f.key,
+            b"x",
+        )
+        .unwrap();
         env.signature[3] ^= 0xff;
         assert_eq!(env.open(&f.log, &f.key), Err(ChangeError::BadSignature));
     }
@@ -206,7 +261,16 @@ mod tests {
     #[test]
     fn rejects_replay_into_another_document() {
         let f = fixture();
-        let mut env = ChangeEnvelope::create(&f.alice, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"x").unwrap();
+        let mut env = ChangeEnvelope::create(
+            &f.alice,
+            f.ws,
+            DocId::random(),
+            Epoch::GENESIS,
+            1,
+            &f.key,
+            b"x",
+        )
+        .unwrap();
         // Relabel the document id. The signature covers the routing metadata, so
         // this is rejected before decryption is even attempted.
         env.doc_id = DocId::random();
@@ -214,7 +278,16 @@ mod tests {
 
         // And if an attacker also re-signs with their own key, they are not a member.
         let eve = Identity::generate();
-        let mut forged = ChangeEnvelope::create(&f.alice, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"x").unwrap();
+        let mut forged = ChangeEnvelope::create(
+            &f.alice,
+            f.ws,
+            DocId::random(),
+            Epoch::GENESIS,
+            1,
+            &f.key,
+            b"x",
+        )
+        .unwrap();
         forged.doc_id = DocId::random();
         forged.signature = eve.sign(&forged.signing_bytes()).to_vec();
         assert_eq!(forged.open(&f.log, &f.key), Err(ChangeError::BadSignature));
@@ -223,7 +296,16 @@ mod tests {
     #[test]
     fn rejects_replay_into_another_epoch_label() {
         let f = fixture();
-        let mut env = ChangeEnvelope::create(&f.alice, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"x").unwrap();
+        let mut env = ChangeEnvelope::create(
+            &f.alice,
+            f.ws,
+            DocId::random(),
+            Epoch::GENESIS,
+            1,
+            &f.key,
+            b"x",
+        )
+        .unwrap();
         env.epoch = Epoch(7);
         // Author is not a member at epoch 7 in this log, so it fails on membership.
         assert!(env.open(&f.log, &f.key).is_err());
@@ -233,14 +315,25 @@ mod tests {
     fn rejects_author_who_is_not_a_member() {
         let f = fixture();
         let eve = Identity::generate();
-        let env = ChangeEnvelope::create(&eve, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"x").unwrap();
+        let env =
+            ChangeEnvelope::create(&eve, f.ws, DocId::random(), Epoch::GENESIS, 1, &f.key, b"x")
+                .unwrap();
         assert_eq!(env.open(&f.log, &f.key), Err(ChangeError::NotAMember));
     }
 
     #[test]
     fn id_is_stable_across_encode_decode() {
         let f = fixture();
-        let env = ChangeEnvelope::create(&f.bob, f.ws, DocId::random(), Epoch::GENESIS, 5, &f.key, b"y").unwrap();
+        let env = ChangeEnvelope::create(
+            &f.bob,
+            f.ws,
+            DocId::random(),
+            Epoch::GENESIS,
+            5,
+            &f.key,
+            b"y",
+        )
+        .unwrap();
         let a = env.id();
         let b = ChangeEnvelope::decode(&env.encode()).unwrap().id();
         assert_eq!(a, b);

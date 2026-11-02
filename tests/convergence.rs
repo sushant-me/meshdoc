@@ -19,7 +19,9 @@ use meshdoc::node::{Invite, Node};
 struct Rng(u64);
 
 impl Rng {
-    fn new(seed: u64) -> Self { Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1) }
+    fn new(seed: u64) -> Self {
+        Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
+    }
     fn next_u64(&mut self) -> u64 {
         let mut x = self.0;
         x ^= x >> 12;
@@ -28,8 +30,12 @@ impl Rng {
         self.0 = x;
         x.wrapping_mul(0x2545_F491_4F6C_DD1D)
     }
-    fn below(&mut self, n: usize) -> usize { (self.next_u64() % n as u64) as usize }
-    fn chance(&mut self, pct: u64) -> bool { self.next_u64() % 100 < pct }
+    fn below(&mut self, n: usize) -> usize {
+        (self.next_u64() % n as u64) as usize
+    }
+    fn chance(&mut self, pct: u64) -> bool {
+        self.next_u64() % 100 < pct
+    }
 }
 
 struct Cluster {
@@ -64,28 +70,39 @@ impl Cluster {
         for _ in 0..2 {
             for i in 0..self.nodes.len() {
                 for j in 0..self.nodes.len() {
-                    if i != j { self.contact(i, j); }
+                    if i != j {
+                        self.contact(i, j);
+                    }
                 }
             }
         }
     }
 
-    fn renders(&self) -> Vec<String> { self.nodes.iter().map(|n| n.render()).collect() }
+    fn renders(&self) -> Vec<String> {
+        self.nodes.iter().map(|n| n.render()).collect()
+    }
 
     fn assert_converged(&self, seed: u64, step: usize) {
         // Same op set is not enough: every replica must also have applied them all.
         for (i, n) in self.nodes.iter().enumerate() {
             assert_eq!(
-                n.applied_count(), n.change_count(),
+                n.applied_count(),
+                n.change_count(),
                 "seed={seed} step={step} replica {i} holds {} changes but applied {}",
-                n.change_count(), n.applied_count()
+                n.change_count(),
+                n.applied_count()
             );
         }
         // Nothing may be held-but-unapplied after a full heal.
         for (i, n) in self.nodes.iter().enumerate() {
             if n.rejected_count() > 0 {
-                let mut msg = format!("seed={seed} step={step} replica {i} rejected {} change(s):", n.rejected_count());
-                for (id, why) in n.rejected() { msg.push_str(&format!("\n  {} -> {why}", &id.to_hex()[..10])); }
+                let mut msg = format!(
+                    "seed={seed} step={step} replica {i} rejected {} change(s):",
+                    n.rejected_count()
+                );
+                for (id, why) in n.rejected() {
+                    msg.push_str(&format!("\n  {} -> {why}", &id.to_hex()[..10]));
+                }
                 panic!("{msg}");
             }
         }
@@ -99,7 +116,9 @@ impl Cluster {
         }
     }
 
-    fn total_changes(&self) -> usize { self.nodes[0].change_count() }
+    fn total_changes(&self) -> usize {
+        self.nodes[0].change_count()
+    }
 }
 
 fn workspace_with_doc(nodes: &mut [Node], ty: DocType, title: &str) -> DocId {
@@ -124,8 +143,14 @@ fn workspace_with_doc(nodes: &mut [Node], ty: DocType, title: &str) -> DocId {
 /// This is the workhorse: many seeds, several document types, varying depth.
 #[test]
 fn random_schedules_always_converge() {
-    let seeds: u64 = std::env::var("SEEDS").ok().and_then(|v| v.parse().ok()).unwrap_or(120);
-    let start: u64 = std::env::var("START").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let seeds: u64 = std::env::var("SEEDS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(120);
+    let start: u64 = std::env::var("START")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
     let mut worst = 0usize;
     for seed in start..(start + seeds) {
         let mut rng = Rng::new(seed + 1);
@@ -146,9 +171,13 @@ fn random_schedules_always_converge() {
                     let who = rng.below(n);
                     let doc = docs[rng.below(docs.len())];
                     let node = &mut c.nodes[who];
-                    if node.doc(&doc).is_none() { continue; }
+                    if node.doc(&doc).is_none() {
+                        continue;
+                    }
                     match rng.below(5) {
-                        0 => { node.add_checklist_item(doc, &format!("item-{seed}-{step}")); }
+                        0 => {
+                            node.add_checklist_item(doc, &format!("item-{seed}-{step}"));
+                        }
                         1 => {
                             let items = node.doc(&doc).map(|d| d.iter_items()).unwrap_or_default();
                             if !items.is_empty() {
@@ -156,16 +185,35 @@ fn random_schedules_always_converge() {
                                 let _ = node.toggle_checklist_item(doc, &it.id, !it.done);
                             }
                         }
-                        2 => { node.set_supply_field(doc, &format!("f{}", rng.below(3)), &format!("{}", rng.below(100)), "kg"); }
-                        3 => { let _ = node.set_note(doc, &format!("revision {step} seed {seed}")); }
-                        _ => { let _ = node.set_location(doc, 27.0 + step as f64 * 0.001, 85.0, &format!("p{step}"), "water"); }
+                        2 => {
+                            node.set_supply_field(
+                                doc,
+                                &format!("f{}", rng.below(3)),
+                                &format!("{}", rng.below(100)),
+                                "kg",
+                            );
+                        }
+                        3 => {
+                            let _ = node.set_note(doc, &format!("revision {step} seed {seed}"));
+                        }
+                        _ => {
+                            let _ = node.set_location(
+                                doc,
+                                27.0 + step as f64 * 0.001,
+                                85.0,
+                                &format!("p{step}"),
+                                "water",
+                            );
+                        }
                     }
                 }
                 _ => {
                     // A contact between two random replicas.
                     let i = rng.below(n);
                     let j = rng.below(n);
-                    if i != j { c.contact(i, j); }
+                    if i != j {
+                        c.contact(i, j);
+                    }
                 }
             }
         }
@@ -177,7 +225,8 @@ fn random_schedules_always_converge() {
         let expected = c.total_changes();
         for (idx, node) in c.nodes.iter().enumerate() {
             assert_eq!(
-                node.change_count(), expected,
+                node.change_count(),
+                expected,
                 "seed={seed}: replica {idx} has {} changes, expected {expected}",
                 node.change_count()
             );
@@ -205,8 +254,16 @@ fn full_partition_then_heal_converges() {
         // Heal and require convergence.
         c.heal();
         c.assert_converged(seed, 0);
-        let total: usize = c.nodes.iter().map(|x| x.doc(&did).unwrap().iter_items().len()).sum();
-        assert_eq!(total, n * 5 * n, "each replica must end with all {n}x5 items (seed {seed})");
+        let total: usize = c
+            .nodes
+            .iter()
+            .map(|x| x.doc(&did).unwrap().iter_items().len())
+            .sum();
+        assert_eq!(
+            total,
+            n * 5 * n,
+            "each replica must end with all {n}x5 items (seed {seed})"
+        );
         let _ = rng.below(1);
     }
 }
@@ -219,7 +276,9 @@ fn gossip_chain_propagates_end_to_end() {
     c.nodes[0].set_note(did, "origin").unwrap();
 
     // A -> B -> C -> D -> E, never a direct contact with the origin.
-    for i in 0..4 { c.contact(i, i + 1); }
+    for i in 0..4 {
+        c.contact(i, i + 1);
+    }
     c.heal();
 
     for node in &c.nodes {
@@ -236,8 +295,14 @@ fn repeated_sync_is_idempotent() {
     c.nodes[0].add_checklist_item(did, "a").unwrap();
     c.heal();
     let before = c.nodes[0].change_count();
-    for _ in 0..5 { c.heal(); }
-    assert_eq!(c.nodes[0].change_count(), before, "idempotent heal must not create changes");
+    for _ in 0..5 {
+        c.heal();
+    }
+    assert_eq!(
+        c.nodes[0].change_count(),
+        before,
+        "idempotent heal must not create changes"
+    );
     c.assert_converged(0, 0);
 }
 
@@ -252,11 +317,15 @@ fn long_schedule_six_replicas() {
     for step in 0..200 {
         if rng.chance(60) {
             let who = rng.below(n);
-            c.nodes[who].add_checklist_item(did, &format!("s{step}")).unwrap();
+            c.nodes[who]
+                .add_checklist_item(did, &format!("s{step}"))
+                .unwrap();
         } else {
             let i = rng.below(n);
             let j = rng.below(n);
-            if i != j { c.contact(i, j); }
+            if i != j {
+                c.contact(i, j);
+            }
         }
     }
     c.heal();
@@ -265,8 +334,15 @@ fn long_schedule_six_replicas() {
     // The union of all edits must be present everywhere.
     let items = c.nodes[0].doc(&did).unwrap().iter_items();
     let uniq: BTreeSet<String> = items.iter().map(|i| i.text.clone()).collect();
-    assert_eq!(uniq.len(), items.len(), "no duplicate items after convergence");
-    assert!(items.len() >= 200 * 60 / 100, "expected at least the number of edit steps");
+    assert_eq!(
+        uniq.len(),
+        items.len(),
+        "no duplicate items after convergence"
+    );
+    assert!(
+        items.len() >= 200 * 60 / 100,
+        "expected at least the number of edit steps"
+    );
 }
 
 /// Two workspaces in the same store must never leak into each other.
@@ -296,7 +372,10 @@ fn workspace_id_is_stable_across_membership_changes() {
         let j = Identity::generate();
         let inv = founder.invite_for(&j.public()).unwrap();
         let mut joiner = Node::join_from_invite(j, &inv).unwrap();
-        assert_eq!(joiner.workspace_id, ws, "invitee must land in the same workspace");
+        assert_eq!(
+            joiner.workspace_id, ws,
+            "invitee must land in the same workspace"
+        );
         let _ = joiner.sync_with(&mut founder);
     }
     assert_eq!(founder.workspace_id, ws);

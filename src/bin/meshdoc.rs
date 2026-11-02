@@ -1,9 +1,8 @@
-//! `meshdoc` — the command-line client.
+//! `meshdoc`, the command-line client.
 //!
 //! It is a real client: every command loads encrypted state from disk, mutates it,
 //! and writes it back sealed. Nothing is kept in memory between invocations, which
 //! is exactly how the Android client behaves on process death.
-
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -32,7 +31,12 @@ struct Cli {
     dir: PathBuf,
 
     /// Passphrase protecting the store (or set MESHDOC_PASSPHRASE)
-    #[arg(long, global = true, env = "MESHDOC_PASSPHRASE", hide_env_values = true)]
+    #[arg(
+        long,
+        global = true,
+        env = "MESHDOC_PASSPHRASE",
+        hide_env_values = true
+    )]
     pass: Option<String>,
 
     /// Workspace to operate on (defaults to the only one in the store)
@@ -214,7 +218,8 @@ enum SyncCmd {
 }
 
 fn parse_doctype(s: &str) -> Result<DocType, String> {
-    DocType::parse(s).ok_or_else(|| format!("unknown type '{s}' (checklist|supply_form|geo_point|note)"))
+    DocType::parse(s)
+        .ok_or_else(|| format!("unknown type '{s}' (checklist|supply_form|geo_point|note)"))
 }
 
 fn parse_docid(s: &str) -> Result<DocId, String> {
@@ -223,7 +228,9 @@ fn parse_docid(s: &str) -> Result<DocId, String> {
     if s.len() == 32 {
         return DocId::from_hex(s).ok_or_else(|| "malformed document id".to_string());
     }
-    Err(format!("'{s}' is not a full document id (use the 32-hex id from `doc list`)") )
+    Err(format!(
+        "'{s}' is not a full document id (use the 32-hex id from `doc list`)"
+    ))
 }
 
 fn parse_wsid(s: &str) -> Result<WorkspaceId, String> {
@@ -250,15 +257,24 @@ fn load(cli: &Cli) -> Result<(Store, Node), String> {
         None => {
             let list = store.list_workspaces().map_err(|e| e.to_string())?;
             match list.len() {
-                0 => return Err("no workspace in this store (run `workspace create --name ...`)".into()),
+                0 => {
+                    return Err(
+                        "no workspace in this store (run `workspace create --name ...`)".into(),
+                    )
+                }
                 1 => list[0],
-                _ => return Err(format!(
-                    "store holds {} workspaces; pass --ws <id> (see `workspace list`)", list.len()
-                )),
+                _ => {
+                    return Err(format!(
+                        "store holds {} workspaces; pass --ws <id> (see `workspace list`)",
+                        list.len()
+                    ))
+                }
             }
         }
     };
-    let node = store.load_node(identity, ws, &pass).map_err(|e| e.to_string())?;
+    let node = store
+        .load_node(identity, ws, &pass)
+        .map_err(|e| e.to_string())?;
     Ok((store, node))
 }
 
@@ -352,7 +368,12 @@ fn workspace_cmd(cli: &Cli, cmd: &WorkspaceCmd) -> Result<(), String> {
             for ws in store.list_workspaces().map_err(|e| e.to_string())? {
                 let id = store.load_identity(&pass).map_err(|e| e.to_string())?;
                 match store.load_node(id, ws, &pass) {
-                    Ok(n) => println!("{}  \"{}\"  {} docs", ws, n.workspace_name(), n.doc_ids().len()),
+                    Ok(n) => println!(
+                        "{}  \"{}\"  {} docs",
+                        ws,
+                        n.workspace_name(),
+                        n.doc_ids().len()
+                    ),
                     Err(_) => println!("{ws}  <unreadable>"),
                 }
             }
@@ -364,7 +385,9 @@ fn workspace_cmd(cli: &Cli, cmd: &WorkspaceCmd) -> Result<(), String> {
             println!("name        : {}", node.workspace_name());
             println!("epoch       : {}", node.epoch());
             println!("members     : {}", node.members().len());
-            for m in node.members() { println!("  member    : {m}"); }
+            for m in node.members() {
+                println!("  member    : {m}");
+            }
             println!("documents   : {}", node.doc_ids().len());
             println!("changes     : {}", node.change_count());
             Ok(())
@@ -422,14 +445,22 @@ fn doc_cmd(cli: &Cli, cmd: &DocCmd) -> Result<(), String> {
                         }
                         DocType::Note => format!("{} chars", d.text().chars().count()),
                     };
-                    println!("{}  {:<12} {:<28} {}", did, d.ty().as_str(), d.title(), extra);
+                    println!(
+                        "{}  {:<12} {:<28} {}",
+                        did,
+                        d.ty().as_str(),
+                        d.title(),
+                        extra
+                    );
                 }
             }
             Ok(())
         }
         DocCmd::Show { id } => {
             let did = parse_docid(id)?;
-            let doc = node.doc(&did).ok_or_else(|| format!("no such document {id}"))?;
+            let doc = node
+                .doc(&did)
+                .ok_or_else(|| format!("no such document {id}"))?;
             print!("{}", doc.render());
             Ok(())
         }
@@ -441,14 +472,17 @@ fn checklist_cmd(cli: &Cli, cmd: &ChecklistCmd) -> Result<(), String> {
     match cmd {
         ChecklistCmd::Add { doc, text } => {
             let did = parse_docid(doc)?;
-            let (_cid, item) = node.add_checklist_item_id(did, text).map_err(|e| e.to_string())?;
+            let (_cid, item) = node
+                .add_checklist_item_id(did, text)
+                .map_err(|e| e.to_string())?;
             save(cli, &store, &node)?;
             println!("{item}");
             Ok(())
         }
         ChecklistCmd::Toggle { doc, item, undone } => {
             let did = parse_docid(doc)?;
-            node.toggle_checklist_item(did, item, !undone).map_err(|e| e.to_string())?;
+            node.toggle_checklist_item(did, item, !undone)
+                .map_err(|e| e.to_string())?;
             save(cli, &store, &node)?;
             println!("{}", if *undone { "unticked" } else { "ticked" });
             Ok(())
@@ -457,8 +491,12 @@ fn checklist_cmd(cli: &Cli, cmd: &ChecklistCmd) -> Result<(), String> {
             let did = parse_docid(doc)?;
             let d = node.doc(&did).ok_or("no such document")?;
             let ok = d.remove_item(item);
-            if ok { save(cli, &store, &node)?; println!("removed"); }
-            else { return Err("no such item".into()); }
+            if ok {
+                save(cli, &store, &node)?;
+                println!("removed");
+            } else {
+                return Err("no such item".into());
+            }
             Ok(())
         }
     }
@@ -467,9 +505,15 @@ fn checklist_cmd(cli: &Cli, cmd: &ChecklistCmd) -> Result<(), String> {
 fn supply_cmd(cli: &Cli, cmd: &SupplyCmd) -> Result<(), String> {
     let (store, mut node) = load(cli)?;
     match cmd {
-        SupplyCmd::Set { doc, field, value, unit } => {
+        SupplyCmd::Set {
+            doc,
+            field,
+            value,
+            unit,
+        } => {
             let did = parse_docid(doc)?;
-            node.set_supply_field(did, field, value, unit).map_err(|e| e.to_string())?;
+            node.set_supply_field(did, field, value, unit)
+                .map_err(|e| e.to_string())?;
             save(cli, &store, &node)?;
             println!("set {field} = {value} {unit}");
             Ok(())
@@ -480,9 +524,16 @@ fn supply_cmd(cli: &Cli, cmd: &SupplyCmd) -> Result<(), String> {
 fn geo_cmd(cli: &Cli, cmd: &GeoCmd) -> Result<(), String> {
     let (store, mut node) = load(cli)?;
     match cmd {
-        GeoCmd::Set { doc, lat, lon, label, kind } => {
+        GeoCmd::Set {
+            doc,
+            lat,
+            lon,
+            label,
+            kind,
+        } => {
             let did = parse_docid(doc)?;
-            node.set_location(did, *lat, *lon, label, kind).map_err(|e| e.to_string())?;
+            node.set_location(did, *lat, *lon, label, kind)
+                .map_err(|e| e.to_string())?;
             save(cli, &store, &node)?;
             println!("location set to ({lat}, {lon}) {label} [{kind}]");
             Ok(())
@@ -503,7 +554,8 @@ fn note_cmd(cli: &Cli, cmd: &NoteCmd) -> Result<(), String> {
         NoteCmd::Append { doc, text } => {
             let did = parse_docid(doc)?;
             let existing = node.doc(&did).ok_or("no such document")?.text();
-            node.set_note(did, &format!("{existing}{text}")).map_err(|e| e.to_string())?;
+            node.set_note(did, &format!("{existing}{text}"))
+                .map_err(|e| e.to_string())?;
             save(cli, &store, &node)?;
             println!("note appended");
             Ok(())
@@ -517,23 +569,38 @@ fn sync_cmd(cli: &Cli, cmd: &SyncCmd) -> Result<(), String> {
             let (store, mut node) = load(cli)?;
             let mut stream = TcpMesh::connect(*peer).map_err(|e| e.to_string())?;
             let mut reader = stream.try_clone().map_err(|e| e.to_string())?;
-            let stats = sync::pull(&mut reader, &mut stream, &mut node).map_err(|e| e.to_string())?;
+            let stats =
+                sync::pull(&mut reader, &mut stream, &mut node).map_err(|e| e.to_string())?;
             save(cli, &store, &node)?;
-            println!("pulled {} changes ({} applied) in {} page(s)", stats.received, stats.applied, stats.pages);
+            println!(
+                "pulled {} changes ({} applied) in {} page(s)",
+                stats.received, stats.applied, stats.pages
+            );
             println!("{}", node.summary());
             Ok(())
         }
-        SyncCmd::Serve { bind, port, max_sessions } => {
+        SyncCmd::Serve {
+            bind,
+            port,
+            max_sessions,
+        } => {
             let (store, mut node) = load(cli)?;
             let mesh = TcpMesh::bind(*port).map_err(|e| e.to_string())?;
             let addr = mesh.local_addr();
-            println!("serving sync on {bind}:{} (workspace {})", addr.port(), &node.workspace_id.to_hex()[..8]);
+            println!(
+                "serving sync on {bind}:{} (workspace {})",
+                addr.port(),
+                &node.workspace_id.to_hex()[..8]
+            );
 
             let mut served = 0usize;
             loop {
                 let stream = match mesh.accept_one() {
                     Ok(s) => s,
-                    Err(e) => { eprintln!("accept failed: {e}"); continue; }
+                    Err(e) => {
+                        eprintln!("accept failed: {e}");
+                        continue;
+                    }
                 };
                 let mut reader = stream.try_clone().map_err(|e| e.to_string())?;
                 let mut writer = stream;
@@ -545,14 +612,15 @@ fn sync_cmd(cli: &Cli, cmd: &SyncCmd) -> Result<(), String> {
                     }
                     Err(e) => eprintln!("session error: {e}"),
                 }
-                if *max_sessions != 0 && served >= *max_sessions { break; }
+                if *max_sessions != 0 && served >= *max_sessions {
+                    break;
+                }
             }
             println!("served {served} session(s)");
             Ok(())
         }
     }
 }
-
 
 fn relay_cmd(cli: &Cli, cmd: &RelayCmd) -> Result<(), String> {
     match cmd {
@@ -564,7 +632,10 @@ fn relay_cmd(cli: &Cli, cmd: &RelayCmd) -> Result<(), String> {
             println!("status   : {} (v{})", h.status, h.version);
             println!("blobs    : {} total on relay", h.blobs);
             if let Ok(head) = client.head(node.workspace_id) {
-                println!("workspace: {} blob(s) at seq {head}", &node.workspace_id.to_hex()[..8]);
+                println!(
+                    "workspace: {} blob(s) at seq {head}",
+                    &node.workspace_id.to_hex()[..8]
+                );
             }
             Ok(())
         }
@@ -573,26 +644,38 @@ fn relay_cmd(cli: &Cli, cmd: &RelayCmd) -> Result<(), String> {
             let (_store, node) = load(cli)?;
             let all = node.envelopes_not_in(&Default::default(), usize::MAX);
             let blobs: Vec<Vec<u8>> = all.iter().map(|e| e.encode()).collect();
-            let sent = client.push_changes(node.workspace_id, &blobs).map_err(|e| e.to_string())?;
+            let sent = client
+                .push_changes(node.workspace_id, &blobs)
+                .map_err(|e| e.to_string())?;
             println!("pushed {sent} new change(s) to {relay}");
-            println!("relay head is now {}", client.head(node.workspace_id).unwrap_or(0));
+            println!(
+                "relay head is now {}",
+                client.head(node.workspace_id).unwrap_or(0)
+            );
             Ok(())
         }
         RelayCmd::Pull { relay } => {
             let client = RelayClient::new(relay).map_err(|e| e.to_string())?;
             let (store, mut node) = load(cli)?;
-            let blobs = client.fetch_since(node.workspace_id, 0).map_err(|e| e.to_string())?;
+            let blobs = client
+                .fetch_since(node.workspace_id, 0)
+                .map_err(|e| e.to_string())?;
             let mut applied = 0usize;
             let mut seen = 0usize;
             for b in &blobs {
                 if let Ok(env) = meshdoc::change::ChangeEnvelope::decode(&b.data) {
                     seen += 1;
-                    if node.ingest(env).unwrap_or(false) { applied += 1; }
+                    if node.ingest(env).unwrap_or(false) {
+                        applied += 1;
+                    }
                 }
             }
             applied += node.retry_pending();
             save(cli, &store, &node)?;
-            println!("fetched {} blob(s), {seen} change(s), {applied} newly applied", blobs.len());
+            println!(
+                "fetched {} blob(s), {seen} change(s), {applied} newly applied",
+                blobs.len()
+            );
             println!("{}", node.summary());
             Ok(())
         }

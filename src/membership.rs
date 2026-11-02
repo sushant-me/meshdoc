@@ -1,6 +1,6 @@
 //! Signed, append-only membership log with key-rotation epochs.
 //!
-//! Membership is **not** merely "you have the workspace key": possession is how you
+//! Membership is not merely "you have the workspace key": possession is how you
 //! read, but authorisation is decided by this log. A change is accepted only if its
 //! author appears in the log at the epoch the change claims, as observed causally by
 //! the receiver.
@@ -10,7 +10,7 @@
 //! members adding someone at once) are permitted; the log is a DAG, not a line.
 //!
 //! What key rotation does and does not do:
-//! * It stops a removed member from reading **new** content written under a later
+//! * It stops a removed member from reading new content written under a later
 //!   epoch.
 //! * It cannot un-read anything they already decrypted, and a partitioned member
 //!   keeps using their old epoch until they observe the rotation.
@@ -26,7 +26,10 @@ use crate::ids::{ChangeId, Epoch, PeerId, WorkspaceId};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MembershipAction {
     /// Genesis: establishes the workspace and its founding member.
-    Found { workspace_id: WorkspaceId, name: String },
+    Found {
+        workspace_id: WorkspaceId,
+        name: String,
+    },
     /// Add a member, sealing the epoch key to their X25519 key.
     Add {
         member: PublicIdentity,
@@ -36,7 +39,11 @@ pub enum MembershipAction {
     /// Remove a member and advance to `epoch`.
     Remove { member: PeerId, epoch: Epoch },
     /// Re-share the key for `epoch` to an existing member (e.g. after rotation).
-    Regrant { member: PublicIdentity, grant: Vec<u8>, epoch: Epoch },
+    Regrant {
+        member: PublicIdentity,
+        grant: Vec<u8>,
+        epoch: Epoch,
+    },
 }
 
 /// One signed entry in the membership log.
@@ -82,7 +89,9 @@ pub struct EntryBuilder<'a> {
 }
 
 impl<'a> EntryBuilder<'a> {
-    pub fn new(id: &'a Identity) -> Self { Self { id } }
+    pub fn new(id: &'a Identity) -> Self {
+        Self { id }
+    }
 
     fn sign(&self, mut e: MembershipEntry) -> MembershipEntry {
         let msg = e.signing_bytes();
@@ -105,29 +114,69 @@ impl<'a> EntryBuilder<'a> {
         })
     }
 
-    pub fn add(&self, ws: WorkspaceId, epoch: Epoch, member: PublicIdentity,
-               grant: Vec<u8>, parents: Vec<ChangeId>, seq: u64) -> MembershipEntry {
+    pub fn add(
+        &self,
+        ws: WorkspaceId,
+        epoch: Epoch,
+        member: PublicIdentity,
+        grant: Vec<u8>,
+        parents: Vec<ChangeId>,
+        seq: u64,
+    ) -> MembershipEntry {
         self.sign(MembershipEntry {
-            workspace_id: ws, epoch, action: MembershipAction::Add { member, grant },
-            author: self.id.public(), parents, seq, signature: vec![],
+            workspace_id: ws,
+            epoch,
+            action: MembershipAction::Add { member, grant },
+            author: self.id.public(),
+            parents,
+            seq,
+            signature: vec![],
         })
     }
 
-    pub fn remove(&self, ws: WorkspaceId, new_epoch: Epoch, member: PeerId,
-                  parents: Vec<ChangeId>, seq: u64) -> MembershipEntry {
+    pub fn remove(
+        &self,
+        ws: WorkspaceId,
+        new_epoch: Epoch,
+        member: PeerId,
+        parents: Vec<ChangeId>,
+        seq: u64,
+    ) -> MembershipEntry {
         self.sign(MembershipEntry {
-            workspace_id: ws, epoch: new_epoch,
-            action: MembershipAction::Remove { member, epoch: new_epoch },
-            author: self.id.public(), parents, seq, signature: vec![],
+            workspace_id: ws,
+            epoch: new_epoch,
+            action: MembershipAction::Remove {
+                member,
+                epoch: new_epoch,
+            },
+            author: self.id.public(),
+            parents,
+            seq,
+            signature: vec![],
         })
     }
 
-    pub fn regrant(&self, ws: WorkspaceId, epoch: Epoch, member: PublicIdentity,
-                   grant: Vec<u8>, parents: Vec<ChangeId>, seq: u64) -> MembershipEntry {
+    pub fn regrant(
+        &self,
+        ws: WorkspaceId,
+        epoch: Epoch,
+        member: PublicIdentity,
+        grant: Vec<u8>,
+        parents: Vec<ChangeId>,
+        seq: u64,
+    ) -> MembershipEntry {
         self.sign(MembershipEntry {
-            workspace_id: ws, epoch,
-            action: MembershipAction::Regrant { member, grant, epoch },
-            author: self.id.public(), parents, seq, signature: vec![],
+            workspace_id: ws,
+            epoch,
+            action: MembershipAction::Regrant {
+                member,
+                grant,
+                epoch,
+            },
+            author: self.id.public(),
+            parents,
+            seq,
+            signature: vec![],
         })
     }
 }
@@ -142,17 +191,30 @@ pub struct MembershipLog {
 
 impl MembershipLog {
     pub fn new() -> Self {
-        Self { entries: BTreeMap::new(), head_epoch: Epoch::GENESIS }
+        Self {
+            entries: BTreeMap::new(),
+            head_epoch: Epoch::GENESIS,
+        }
     }
 
-    pub fn len(&self) -> usize { self.entries.len() }
-    pub fn is_empty(&self) -> bool { self.entries.is_empty() }
-    pub fn head_epoch(&self) -> Epoch { self.head_epoch }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+    pub fn head_epoch(&self) -> Epoch {
+        self.head_epoch
+    }
 
-    pub fn contains(&self, id: &ChangeId) -> bool { self.entries.contains_key(id) }
+    pub fn contains(&self, id: &ChangeId) -> bool {
+        self.entries.contains_key(id)
+    }
 
     /// All entry ids, for anti-entropy exchange.
-    pub fn ids(&self) -> Vec<ChangeId> { self.entries.keys().copied().collect() }
+    pub fn ids(&self) -> Vec<ChangeId> {
+        self.entries.keys().copied().collect()
+    }
 
     pub fn entries(&self) -> impl Iterator<Item = &MembershipEntry> {
         self.entries.values()
@@ -162,7 +224,11 @@ impl MembershipLog {
     ///
     /// Rejects: bad signatures, wrong workspace, unknown parents, and entries whose
     /// author is not currently a member (except genesis).
-    pub fn insert(&mut self, ws: WorkspaceId, entry: MembershipEntry) -> Result<bool, MembershipError> {
+    pub fn insert(
+        &mut self,
+        ws: WorkspaceId,
+        entry: MembershipEntry,
+    ) -> Result<bool, MembershipError> {
         if entry.workspace_id != ws {
             return Err(MembershipError::WrongWorkspace);
         }
@@ -218,7 +284,7 @@ impl MembershipLog {
         v
     }
 
-    /// Is `who` a member as of `epoch`? Evaluated over observed entries only —
+    /// Is `who` a member as of `epoch`? Evaluated over observed entries only ,
     /// this is a local, causal view, which is exactly the honest guarantee.
     pub fn is_member_at(&self, who: PeerId, epoch: Epoch) -> bool {
         self.members_at(epoch).contains(&who)
@@ -228,17 +294,27 @@ impl MembershipLog {
         let mut members: BTreeSet<PeerId> = BTreeSet::new();
         for e in self.ordered_until(epoch) {
             match &e.action {
-                MembershipAction::Found { .. } => { members.insert(e.author.fingerprint()); }
-                MembershipAction::Add { member, .. } => { members.insert(member.fingerprint()); }
-                MembershipAction::Remove { member, .. } => { members.remove(member); }
-                MembershipAction::Regrant { member, .. } => { members.insert(member.fingerprint()); }
+                MembershipAction::Found { .. } => {
+                    members.insert(e.author.fingerprint());
+                }
+                MembershipAction::Add { member, .. } => {
+                    members.insert(member.fingerprint());
+                }
+                MembershipAction::Remove { member, .. } => {
+                    members.remove(member);
+                }
+                MembershipAction::Regrant { member, .. } => {
+                    members.insert(member.fingerprint());
+                }
             }
         }
         members
     }
 
     /// Current members (highest epoch seen).
-    pub fn members(&self) -> BTreeSet<PeerId> { self.members_at(self.head_epoch) }
+    pub fn members(&self) -> BTreeSet<PeerId> {
+        self.members_at(self.head_epoch)
+    }
 
     /// Recover the workspace key for `epoch` addressed to `me`, by scanning grants.
     pub fn key_for(&self, me: &Identity, epoch: Epoch) -> Option<WorkspaceKey> {
@@ -251,7 +327,9 @@ impl MembershipLog {
                 MembershipAction::Regrant { member, grant, .. } => (*member, grant),
                 _ => continue,
             };
-            if member.fingerprint() != mine || e.epoch > epoch { continue; }
+            if member.fingerprint() != mine || e.epoch > epoch {
+                continue;
+            }
             if best.map_or(true, |(be, _)| e.epoch >= *be) {
                 best = Some((&e.epoch, grant));
             }
@@ -289,7 +367,11 @@ impl std::fmt::Display for MembershipError {
             MembershipError::BadSignature => write!(f, "bad signature"),
             MembershipError::MissingParent(id) => write!(f, "missing parent {}", &id.to_hex()[..8]),
             MembershipError::NoParents => write!(f, "non-genesis entry has no parents"),
-            MembershipError::NotAMember(p) => write!(f, "author {} is not a member at this epoch", &p.to_hex()[..8]),
+            MembershipError::NotAMember(p) => write!(
+                f,
+                "author {} is not a member at this epoch",
+                &p.to_hex()[..8]
+            ),
         }
     }
 }
@@ -324,7 +406,12 @@ mod tests {
         let wk = WorkspaceKey::generate();
         let grant = seal_key_grant(&bob.public(), &wk).unwrap();
         let entry = EntryBuilder::new(&alice).add(
-            ws, Epoch::GENESIS, bob.public(), grant, vec![genesis.id()], 1,
+            ws,
+            Epoch::GENESIS,
+            bob.public(),
+            grant,
+            vec![genesis.id()],
+            1,
         );
         assert!(log.insert(ws, entry).unwrap());
         assert!(log.is_member_at(bob.fingerprint(), Epoch::GENESIS));
@@ -342,14 +429,17 @@ mod tests {
         let bob = Identity::generate();
         let wk = WorkspaceKey::generate();
         let add = EntryBuilder::new(&alice).add(
-            ws, Epoch::GENESIS, bob.public(), seal_key_grant(&bob.public(), &wk).unwrap(),
-            vec![genesis.id()], 1,
+            ws,
+            Epoch::GENESIS,
+            bob.public(),
+            seal_key_grant(&bob.public(), &wk).unwrap(),
+            vec![genesis.id()],
+            1,
         );
         let add_id = add.id();
         log.insert(ws, add).unwrap();
-        let rem = EntryBuilder::new(&alice).remove(
-            ws, Epoch(1), bob.fingerprint(), vec![add_id], 2,
-        );
+        let rem =
+            EntryBuilder::new(&alice).remove(ws, Epoch(1), bob.fingerprint(), vec![add_id], 2);
         log.insert(ws, rem).unwrap();
         assert!(log.is_member_at(bob.fingerprint(), Epoch::GENESIS));
         assert!(!log.is_member_at(bob.fingerprint(), Epoch(1)));
@@ -362,8 +452,12 @@ mod tests {
         let bob = Identity::generate();
         let wk = WorkspaceKey::generate();
         let mut entry = EntryBuilder::new(&alice).add(
-            ws, Epoch::GENESIS, bob.public(), seal_key_grant(&bob.public(), &wk).unwrap(),
-            vec![genesis.id()], 1,
+            ws,
+            Epoch::GENESIS,
+            bob.public(),
+            seal_key_grant(&bob.public(), &wk).unwrap(),
+            vec![genesis.id()],
+            1,
         );
         entry.signature[0] ^= 0xff;
         assert_eq!(log.insert(ws, entry), Err(MembershipError::BadSignature));
@@ -376,10 +470,17 @@ mod tests {
         let victim = Identity::generate();
         let wk = WorkspaceKey::generate();
         let forged = EntryBuilder::new(&mallory).add(
-            ws, Epoch::GENESIS, victim.public(),
-            seal_key_grant(&victim.public(), &wk).unwrap(), vec![genesis.id()], 1,
+            ws,
+            Epoch::GENESIS,
+            victim.public(),
+            seal_key_grant(&victim.public(), &wk).unwrap(),
+            vec![genesis.id()],
+            1,
         );
-        assert!(matches!(log.insert(ws, forged), Err(MembershipError::NotAMember(_))));
+        assert!(matches!(
+            log.insert(ws, forged),
+            Err(MembershipError::NotAMember(_))
+        ));
     }
 
     #[test]
@@ -388,15 +489,24 @@ mod tests {
         let bob = Identity::generate();
         let wk = WorkspaceKey::generate();
         let orphan = EntryBuilder::new(&alice).add(
-            ws, Epoch::GENESIS, bob.public(),
+            ws,
+            Epoch::GENESIS,
+            bob.public(),
             seal_key_grant(&bob.public(), &wk).unwrap(),
-            vec![ChangeId([9u8; 16])], 1,
+            vec![ChangeId([9u8; 16])],
+            1,
         );
-        assert!(matches!(log.insert(ws, orphan), Err(MembershipError::MissingParent(_))));
+        assert!(matches!(
+            log.insert(ws, orphan),
+            Err(MembershipError::MissingParent(_))
+        ));
 
         let other_ws = WorkspaceId::random();
         let genesis2 = EntryBuilder::new(&alice).found(other_ws, "Other");
-        assert_eq!(log.insert(ws, genesis2), Err(MembershipError::WrongWorkspace));
+        assert_eq!(
+            log.insert(ws, genesis2),
+            Err(MembershipError::WrongWorkspace)
+        );
     }
 
     #[test]
