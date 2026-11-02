@@ -70,6 +70,34 @@ Both directions work the same way: whoever calls `pull` fetches what it is missi
 sends what the peer is missing. `meshdoc render` prints the whole workspace
 deterministically, so two devices can be compared with `diff`.
 
+### Running on two real Android phones
+
+There is no app yet, but the CLI cross-compiles for Android and runs under Termux on an
+unrooted phone — so two phones really can sync over a Wi-Fi hotspot with no server.
+
+```bash
+# on a build machine, with the Android NDK installed
+rustup target add aarch64-linux-android
+./scripts/build-android.sh              # -> dist/android-arm64/meshdoc
+
+# copy dist/android-arm64/meshdoc to both phones (adb push, or any file transfer)
+# then in Termux on each phone:
+chmod +x meshdoc
+export MESHDOC_PASSPHRASE='pick-a-passphrase'
+./meshdoc --dir ./field init
+./meshdoc --dir ./field id --hex        # phones exchange these two values
+```
+
+Then follow the invite/serve/pull steps above, using the hotspot address of whichever
+phone serves (`ip addr` in Termux). One phone runs `sync serve`, the other runs
+`sync pull <hotspot-ip>:7777`, and it works in both directions.
+
+The arm64 binaries are built and verified to be correct Android executables
+(`ELF 64-bit LSB pie executable, ARM aarch64, interpreter /system/bin/linker64, Android 24`),
+but they have **not** been executed on a physical phone in this workspace — no phone was
+attached. Run `scripts/two-device-demo.sh` to exercise the identical code paths on one
+machine first.
+
 Relay path, for peers that are never online at the same time:
 
 ```bash
