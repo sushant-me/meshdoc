@@ -1,0 +1,32 @@
+[package]
+name = "meshdoc"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Offline-first, end-to-end-encrypted collaboration for teams without reliable connectivity"
+repository = "https://github.com/sushant-me/meshdoc"
+
+[dependencies]
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+blake3 = "1"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+yrs = "0.28.0"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+zeroize = "1.9.1"
+bincode = "1.3"
+base64 = "0.23.1"
+argon2 = "0.6.0"
+
+[workspace]
+members = ["relay"]
+default-members = [".", "relay"]
+resolver = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
