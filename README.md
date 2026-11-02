@@ -150,6 +150,10 @@ workspace key, because writes are authorised by the signed membership log.
   privacy because those transports are not built yet.
 - **Loss of the passphrase or the device.** There is no recovery, by design.
 
+Verification evidence is in [VERIFICATION.md](VERIFICATION.md) — 111 tests, 20
+consecutive fuzz runs, the end-to-end demo, the two-process run, and the eight real
+defects the fuzzing found.
+
 ## Tests
 
 ```bash
