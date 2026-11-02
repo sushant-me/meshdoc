@@ -24,12 +24,14 @@
 //! 3. Every change is attributable to a key that appears in the membership log.
 //! 4. The workspace id is never derived from a key, so rotation never breaks it.
 
+pub mod ble;
 pub mod change;
 pub mod crypto;
 pub mod docs;
 pub mod ids;
 pub mod membership;
 pub mod node;
+pub mod p2p;
 pub mod relay;
 pub mod store;
 pub mod sync;
