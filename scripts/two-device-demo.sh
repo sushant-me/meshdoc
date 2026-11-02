@@ -35,7 +35,7 @@ note() { printf '   %s\n' "$1"; }
 step "Two independent devices, two independent encrypted stores"
 "$BIN" --dir "$FIELD" init >/dev/null
 "$BIN" --dir "$HQ" init >/dev/null
-HQ_PUB="$("$BIN" --dir "$HQ" id --hex | awk '/public key/{print $4}')"
+HQ_PUB="$("$BIN" --dir "$HQ" id --hex)"
 note "field phone store : ${FIELD}"
 note "HQ store          : ${HQ}"
 note "HQ public identity: ${HQ_PUB:0:32}…"

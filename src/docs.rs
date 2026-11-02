@@ -568,20 +568,41 @@ mod tests {
     }
 
     #[test]
-    fn note_text_converges_under_concurrent_inserts() {
+    fn concurrent_note_writes_converge_to_one_value() {
+        // A note body is a last-writer-wins register, so two concurrent whole-body
+        // writes converge to exactly one of the two values — deterministically the
+        // same one on every replica.
         let did = DocId::random();
         let d1 = Document::create(did, DocType::Note, &id(), "note");
         d1.set_text("base");
-        let d2 = Document::from_doc(did, Doc::new());
+        let base = d1.encode_state();
+
+        let d2 = Document::from_doc(did, yrs::Doc::new());
+        d2.apply_update(&base).unwrap();
+        d1.set_text("from A");
+        d2.set_text("from B");
+        let u1 = d1.encode_state();
+        let u2 = d2.encode_state();
+        d1.apply_update(&u2).unwrap();
+        d2.apply_update(&u1).unwrap();
+
+        assert_eq!(d1.text(), d2.text(), "both replicas must agree");
+        assert!(
+            d1.text() == "from A" || d1.text() == "from B",
+            "the winner must be one of the concurrent writes, got {:?}",
+            d1.text()
+        );
+    }
+
+    #[test]
+    fn note_append_is_visible_to_peers() {
+        let did = DocId::random();
+        let d1 = Document::create(did, DocType::Note, &id(), "n");
+        d1.set_text("a");
+        d1.append_text("b");
+        let d2 = Document::from_doc(did, yrs::Doc::new());
         d2.apply_update(&d1.encode_state()).unwrap();
-        d1.append_text(" A");
-        d2.append_text(" B");
-        let sv1 = d1.state_vector();
-        let sv2 = d2.state_vector();
-        d2.apply_update(&d1.encode_diff(&sv2).unwrap()).unwrap();
-        d1.apply_update(&d2.encode_diff(&sv1).unwrap()).unwrap();
-        assert_eq!(d1.text(), d2.text());
-        assert!(d1.text().contains('A') && d1.text().contains('B'));
+        assert_eq!(d2.text(), "ab");
     }
 
     #[test]

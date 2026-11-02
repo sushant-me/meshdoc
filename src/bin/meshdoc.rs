@@ -48,7 +48,11 @@ enum Cmd {
     /// Create a new device identity in the store
     Init,
     /// Show this device's identity
-    Id,
+    Id {
+        /// Print only the public identity (128 hex chars), for scripts and QR codes
+        #[arg(long)]
+        hex: bool,
+    },
     /// Workspace operations
     Workspace {
         #[command(subcommand)]
@@ -287,13 +291,17 @@ fn run(cli: Cli) -> Result<(), String> {
             println!("  store       : {}", store.dir().display());
             Ok(())
         }
-        Cmd::Id => {
+        Cmd::Id { hex } => {
             let pass = pass_of(&cli);
             let store = Store::open(&cli.dir).map_err(|e| e.to_string())?;
             let id = store.load_identity(&pass).map_err(|e| e.to_string())?;
-            println!("fingerprint : {}", id.fingerprint());
-            println!("public key  : {}", id.public().to_hex());
-            println!("peer id     : {}", id.fingerprint());
+            if *hex {
+                println!("{}", id.public().to_hex());
+            } else {
+                println!("fingerprint : {}", id.fingerprint());
+                println!("public key  : {}", id.public().to_hex());
+                println!("peer id     : {}", id.fingerprint());
+            }
             Ok(())
         }
         Cmd::Workspace { cmd } => workspace_cmd(&cli, cmd),
