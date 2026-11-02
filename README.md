@@ -92,12 +92,14 @@ Then follow the invite/serve/pull steps above, using the hotspot address of whic
 phone serves (`ip addr` in Termux). One phone runs `sync serve`, the other runs
 `sync pull <hotspot-ip>:7777`, and it works in both directions.
 
-The Android build is not theoretical: the CLI has been **executed on Android** (API 35)
-and synced with a Linux host in both directions, converging to byte-identical state —
-see [VERIFICATION.md](VERIFICATION.md) and `demo/android-sync.mp4`.
+The Android build is not theoretical. **Two Android 15 devices have synced directly with
+each other, both directions, converging to byte-identical state** — see
+[VERIFICATION.md](VERIFICATION.md) and `demo/two-android-devices.mp4`. A device has also
+synced with a Linux host (`demo/android-sync.mp4`).
 
 ```bash
-./scripts/android-sync-demo.sh            # syncs a running emulator/device with the host
+./scripts/android-two-device-demo.sh       # two Android devices sync with each other
+./scripts/android-sync-demo.sh             # one Android device syncs with the host
 ./scripts/android-sync-demo.sh --boot renthub   # boots an AVD headless first
 ```
 

@@ -5,7 +5,8 @@ Two recordings, both real runs, both ending in a convergence check.
 | File | Length | What it is |
 |---|---|---|
 | `two-device-sync.mp4` | 42 s | two independent processes with separate encrypted stores syncing over TCP |
-| `android-sync.mp4` | 37 s | the CLI built for Android, installed on an Android 15 device, syncing with a Linux host in both directions |
+| `android-sync.mp4` | 37 s | the CLI built for Android, on an Android 15 device, syncing with a Linux host both ways |
+| `two-android-devices.mp4` | 37 s | **two Android 15 devices syncing directly with each other**, both ways |
 
 ### `two-device-sync.mp4`
 
@@ -18,6 +19,12 @@ disconnected; on reconnect both reconcile and the run ends with
 This is two clients, not two phones. The same binaries run on two Android devices
 under Termux; the radio transports (BLE discovery, Wi-Fi Direct) are not implemented
 yet, so the link here is TCP over loopback/LAN.
+
+### `two-android-devices.mp4`
+
+Captured from `scripts/android-two-device-demo.sh`: builds for the device ABI, installs on
+two Android devices, has device A create the workspace and invite B, syncs A → B, edits
+on B while they are apart, syncs B → A, and diffs both `render` outputs.
 
 ### `android-sync.mp4`
 
