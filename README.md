@@ -92,11 +92,18 @@ Then follow the invite/serve/pull steps above, using the hotspot address of whic
 phone serves (`ip addr` in Termux). One phone runs `sync serve`, the other runs
 `sync pull <hotspot-ip>:7777`, and it works in both directions.
 
-The arm64 binaries are built and verified to be correct Android executables
-(`ELF 64-bit LSB pie executable, ARM aarch64, interpreter /system/bin/linker64, Android 24`),
-but they have **not** been executed on a physical phone in this workspace — no phone was
-attached. Run `scripts/two-device-demo.sh` to exercise the identical code paths on one
-machine first.
+The Android build is not theoretical: the CLI has been **executed on Android** (API 35)
+and synced with a Linux host in both directions, converging to byte-identical state —
+see [VERIFICATION.md](VERIFICATION.md) and `demo/android-sync.mp4`.
+
+```bash
+./scripts/android-sync-demo.sh            # syncs a running emulator/device with the host
+./scripts/android-sync-demo.sh --boot renthub   # boots an AVD headless first
+```
+
+What has *not* been done is running it on two **physical** phones, because no phones were
+attached to this machine. The binary is correct for arm64 Android; the untested part is
+your hardware, not the code.
 
 Relay path, for peers that are never online at the same time:
 

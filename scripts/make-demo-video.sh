@@ -10,6 +10,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-${ROOT}/demo/two-device-sync.mp4}"
+DEMO="${DEMO_SCRIPT:-${ROOT}/scripts/two-device-demo.sh}"
+TITLE="${DEMO_TITLE:-meshdoc — two devices, one workspace, no server}"
 FONT="/usr/share/fonts/noto/NotoSansMono-Regular.ttf"
 [[ -f "$FONT" ]] || FONT="$(fc-match -f '%{file}' monospace)"
 W=1280; H=720; PS=14; VISIBLE=36; FPS=3/2
@@ -17,9 +19,9 @@ W=1280; H=720; PS=14; VISIBLE=36; FPS=3/2
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$(dirname "$OUT")"
 
-echo "1/4 running the two-device demo…"
+echo "1/4 running $(basename "$DEMO")…"
 # shellcheck disable=SC2016
-BIN="${BIN:-${ROOT}/target/release/meshdoc}" "${ROOT}/scripts/two-device-demo.sh" 2>&1 \
+BIN="${BIN:-${ROOT}/target/release/meshdoc}" "$DEMO" 2>&1 \
   | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' \
   > "${WORK}/raw.txt" || { echo "demo failed; see output:"; cat "${WORK}/raw.txt"; exit 1; }
 
@@ -34,7 +36,7 @@ render() { # render <file-of-visible-lines> <badge>
   local text="$1" badge="$2"
   magick -size ${W}x${H} xc:'#0d1117' \
     -fill '#161b22' -draw "rectangle 0,0 ${W},34" \
-    -font "$FONT" -pointsize 15 -fill '#8b949e' -annotate +18+23 'meshdoc — two devices, one workspace, no server' \
+    -font "$FONT" -pointsize 15 -fill '#8b949e' -annotate +18+23 "$TITLE" \
     -fill '#238636' -draw "circle $((W-26)),17 $((W-22)),17" \
     -font "$FONT" -pointsize 15 -fill '#e6edf3' -annotate +18+62 "@${WORK}/visible.txt" \
     -font "$FONT" -pointsize 16 -fill '#3fb950' -annotate +18+${H}-22 "$badge" \

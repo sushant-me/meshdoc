@@ -56,6 +56,27 @@ Two independent processes, two independent passphrase-encrypted stores, one work
 syncing over TCP. Divergence before reconnection and byte-identical state after is
 shown in the output. Recorded as `demo/two-device-sync.mp4` (42 s).
 
+## Executed on Android — two-device sync, both directions
+
+The CLI was cross-compiled for Android, installed on an **Android 15 (API 35) x86_64
+emulator**, and synced with a Linux host over adb forwarding:
+
+```
+scripts/android-sync-demo.sh
+...
+   Android → host   pulled 2 changes (2 applied)
+   host → Android   pulled 1 changes (1 applied)
+   CONVERGED — Android device and Linux host hold byte-identical state
+```
+
+The Android side created the workspace and minted the invite; the host joined; the
+Android device pushed a checklist; the host edited while the phone was offline; the
+phone pulled. Final `render` output was byte-identical on both sides. Recorded as
+`demo/android-sync.mp4` (37 s).
+
+This is the same binary and the same code paths that would run on two phones; only the
+link differs (adb forwarding here, Wi-Fi/hotspot between two phones in the field).
+
 ## Android build
 
 ```
