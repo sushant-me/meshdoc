@@ -1,9 +1,27 @@
+# Rust
 /target
 /relay/target
 **/*.rs.bk
+
+# MeshDoc local state
 .meshdoc/
 *.mds
-.DS_Store
 
-# build output
-dist/
+# Flutter / Gradle build outputs
+/app/build/
+/app/.dart_tool/
+/app/.flutter-plugins
+/app/.flutter-plugins-dependencies
+/app/android/.gradle/
+/app/android/local.properties
+/app/android/app/build/
+
+# Native library build output (regenerate with ffi/build-android.sh)
+/ffi/dist/
+/app/android/app/src/main/jniLibs/
+
+# Android Studio
+/app/android/.idea/
+
+.DS_Store
+/dist/

@@ -65,6 +65,7 @@ class RadioPlugin(private val activity: FlutterActivity) :
                 }
 
                 "startAdvertising" -> {
+                    requestNearbyPermissionsIfNeeded()
                     val uuid = call.argument<String>("uuidHex")
                     val payload = call.argument<String>("payloadHex")
                     if (uuid == null || payload == null) {
@@ -80,6 +81,7 @@ class RadioPlugin(private val activity: FlutterActivity) :
                 }
 
                 "startScanning" -> {
+                    requestNearbyPermissionsIfNeeded()
                     val uuid = call.argument<String>("uuidHex")
                     if (uuid == null) return fail(result, "startScanning needs uuidHex")
                     val err = ble.startScanning(uuid)

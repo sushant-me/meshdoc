@@ -1,0 +1,18 @@
+[package]
+name = "meshdoc-ffi"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "C ABI for the MeshDoc core, used by the Android client"
+
+[lib]
+# The library is named meshdoc_ffi to avoid colliding with the `meshdoc` crate it
+# depends on; the Android build script copies libmeshdoc_ffi.so to libmeshdoc.so,
+# which is the name dart:ffi loads.
+name = "meshdoc_ffi"
+crate-type = ["cdylib", "staticlib", "rlib"]
+doctest = false
+
+[dependencies]
+meshdoc = { path = "..", package = "meshdoc" }
+serde_json = "1"

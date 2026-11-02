@@ -116,14 +116,20 @@ class WifiDirectRadio(
             override fun onSuccess() {
                 // The group-owner address arrives via requestGroupInfo below.
                 handler.postDelayed({
-                    m.requestGroupInfo(ch) { info ->
-                        if (info == null) {
-                            onResult(null, "group formed but no group info was available")
-                            return@requestGroupInfo
+                    // The owner ADDRESS lives on WifiP2pInfo (connection info), not on
+                    // WifiP2pGroup, which only carries the owner device.
+                    m.requestConnectionInfo(ch) { info ->
+                        if (info == null || !info.groupFormed) {
+                            onResult(null, "group not formed yet; try again in a moment")
+                            return@requestConnectionInfo
                         }
-                        val host = if (weOwn) "192.168.49.1" else (info.groupOwnerAddress?.hostAddress ?: "192.168.49.1")
+                        val host = if (info.isGroupOwner) {
+                            "192.168.49.1"
+                        } else {
+                            info.groupOwnerAddress?.hostAddress ?: "192.168.49.1"
+                        }
                         group = mapOf(
-                            "role" to lastRole,
+                            "role" to if (info.isGroupOwner) "owner" else "client",
                             "host" to host,
                             "available" to true,
                             "isGroupOwner" to info.isGroupOwner,
@@ -177,8 +183,8 @@ class WifiDirectRadio(
                         }
                     }
                     WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
-                        manager?.requestGroupInfo(channel) { info ->
-                            group = if (info == null) null else mapOf(
+                        manager?.requestConnectionInfo(channel) { info ->
+                            group = if (info == null || !info.groupFormed) null else mapOf(
                                 "role" to if (info.isGroupOwner) "owner" else "client",
                                 "host" to (info.groupOwnerAddress?.hostAddress ?: "192.168.49.1"),
                                 "available" to true,

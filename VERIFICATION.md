@@ -109,6 +109,46 @@ dist/android-arm64/meshdoc: ELF 64-bit LSB pie executable, ARM aarch64,
 Correct Android arm64 executable, suitable for Termux on two phones over a hotspot.
 **Not executed on a physical phone** in this workspace — none was attached.
 
+## Android client — running, with the real core
+
+`app/` is a Flutter client; the Rust core is compiled to `libmeshdoc.so` and called
+over `dart:ffi`. Verified on an Android 15 (API 35) emulator:
+
+```
+flutter analyze          -> No issues found
+flutter test             -> All tests passed
+flutter build apk --debug -> ✓ Built build/app/outputs/flutter-apk/app-debug.apk
+adb install               -> Success
+adb shell am start ...    -> Displayed .MainActivity for user 0: +2s308ms
+```
+
+The app launched, generated a device identity through the native core (shown in
+`demo/android-app/01-home.png`), created a workspace, opened a checklist and added an
+item (`04-checklist.png`). The Nearby-sync panel reports real capabilities from the
+Kotlin layer (`02-nearby-sync-advertising.png`) and BLE advertising actually starts —
+the button flips to "Stop advertising" and `logcat` shows
+`AdvertiseSettings: setTxPowerLevel` and `BluetoothAdapter: isLeEnabled(): ON`.
+
+Missing permissions are reported, not crashed (`03-permission-error.png`).
+
+## Rust tests for the radio layer
+
+`src/ble.rs` and `src/p2p.rs` add 18 tests:
+
+- the discovery UUID is stable within a bucket, rotates between buckets, differs per
+  workspace, carries valid v4/variant bits, tolerates clock skew of two buckets, and
+  cannot be produced by a non-member;
+- the state hint changes the payload but not the UUID;
+- the peer registry deduplicates, orders by recency, prunes, and caps its size;
+- group-role election is symmetric and always yields opposite roles for any pair;
+- `groupOwnerIntent` matches the role;
+- the pre-sync handshake authenticates both sides, refuses a device that holds the
+  workspace key but is not a member, rejects a wrong workspace, and rejects a
+  tampered nonce.
+
+The FFI layer adds 5 more, including a full two-store sync over a real TCP socket
+driven entirely through the C ABI.
+
 ## Bugs found and fixed by this verification
 
 The fuzzing and repeated runs were not ceremony; they found real defects:

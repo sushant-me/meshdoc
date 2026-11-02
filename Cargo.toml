@@ -22,8 +22,8 @@ base64 = "0.23.1"
 argon2 = "0.6.0"
 
 [workspace]
-members = ["relay"]
-default-members = [".", "relay"]
+members = ["relay", "ffi"]
+default-members = [".", "relay", "ffi"]
 resolver = "2"
 
 [profile.release]

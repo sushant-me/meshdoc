@@ -647,6 +647,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "meshdoc-ffi"
+version = "0.1.0"
+dependencies = [
+ "meshdoc",
+ "serde_json",
+]
+
+[[package]]
 name = "meshdoc-relay"
 version = "0.1.0"
 dependencies = [

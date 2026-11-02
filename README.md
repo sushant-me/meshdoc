@@ -4,8 +4,8 @@ Offline-first, end-to-end-encrypted collaboration for teams without reliable con
 
 **Status: working prototype.** This repository demonstrates the core loop — device
 identity, invite-based workspaces, CRDT documents, encrypted change envelopes,
-peer-to-peer reconciliation, and a store-and-forward relay. It is the proof that the
-design works, not a finished product. There is no Android UI yet.
+peer-to-peer reconciliation, BLE discovery, Wi-Fi Direct group formation, a
+store-and-forward relay, and an Android client that runs all of it.
 
 Two replicas edit the same documents while disconnected, reconnect, and converge to
 identical state. Every wire format is encrypted before it is transported.
@@ -40,8 +40,26 @@ All assertions run as part of the demo; the exit code is 0 only if every one hel
 | Store-and-forward relay (opaque blobs) + client | working |
 | Encrypted local store (Argon2id + XChaCha20-Poly1305) | working |
 | Convergence fuzzing under random partition schedules | working |
-| BLE discovery, Wi-Fi Direct group formation | **not implemented** |
-| Android client | **not implemented** |
+| BLE discovery (rotating unlinkable UUID), Wi-Fi Direct group formation | working |
+| Android client (Flutter UI + Kotlin radio + Rust core via FFI) | working |
+
+## The Android app
+
+`app/` is a Flutter client. The Rust core is compiled to `libmeshdoc.so` and called
+over `dart:ffi`; BLE and Wi-Fi Direct are driven by Kotlin platform channels.
+
+```bash
+ffi/build-android.sh          # builds and bundles libmeshdoc.so for arm64 + x86_64
+cd app && flutter build apk --debug
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+Screenshots of it running on Android 15 are in [`demo/android-app/`](demo/android-app/).
+
+What the app does today: create/join a workspace, list and open documents, tick
+checklist items with big targets, advertise the rotating discovery tag over BLE, scan
+for peers, form a Wi-Fi Direct group, sync with a discovered peer, and pull from a
+relay. Every native failure surfaces as a readable message rather than a crash.
 
 ## Two devices syncing over the network
 
@@ -183,16 +201,19 @@ replica is holding a change it could not apply.
 
 ## Known gaps
 
-- **BLE and Wi-Fi Direct are not implemented.** Sync runs over TCP today. The
-  `MeshTransport` trait and the simulated mesh with partitions exist; a real radio
-  backend slots in behind them.
+- **The BLE/Wi-Fi Direct paths have not been exercised between two physical phones.**
+  They build, they start on an emulator (BLE advertising and scanning run; Wi-Fi
+  Direct does not exist on an emulator), and the sync they carry is the same code that
+  two Android devices already ran over TCP. What is unproven is the radio link itself
+  on real hardware.
 - **Membership updates do not travel through the relay.** Change blobs do. A peer that
   only ever talks to the relay will converge on documents but may not learn about
   members who joined after it went offline.
 - **Each change carries the full document state.** This is deliberate: a delta that
   missed an operation would silently break convergence. Deltas with a verified
   watermark are the next optimisation.
-- No Android app, no QR rendering (the token is QR-sized but printed as text).
+- No QR *rendering* yet: an invite token is QR-sized but is shown as text.
+- No field pilot, no maps, no chat — by design.
 
 ## Licence
 
